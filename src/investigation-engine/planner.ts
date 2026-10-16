@@ -128,15 +128,6 @@ export function planObjective(
     ),
   );
 
-  if (intent.wantsExperiment) {
-    steps.push(
-      step(
-        "Design experiment: procedure, measurements, repetitions, acceptance",
-        "internal: ExperimentSpec with reference artifact; alternative when one is generated",
-      ),
-    );
-    expectedEvidence.push("experiment:run");
-  }
   if (intent.wantsAlternative) {
     steps.push(
       step(
@@ -146,6 +137,15 @@ export function planObjective(
       ),
     );
     expectedEvidence.push("codegen:typescript");
+  }
+  if (intent.wantsExperiment) {
+    steps.push(
+      step(
+        "Design experiment: procedure, measurements, repetitions, acceptance",
+        "internal: ExperimentSpec with reference artifact; alternative when one is generated",
+      ),
+    );
+    expectedEvidence.push("experiment:run");
   }
   if (intent.wantsExperiment) {
     steps.push(

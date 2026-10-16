@@ -76,6 +76,20 @@ describe("planObjective", () => {
     expect(plan.limitations.length).toBeGreaterThan(0);
   });
 
+  it("orders codegen before experiment design (the spec needs the alternative)", () => {
+    const plan = planObjective(
+      "Investigate the mini-kv TTL implementation and build a simpler alternative",
+      [target({})],
+    );
+    const titles = plan.steps.map((s) => s.title);
+    const codegenIdx = titles.findIndex((t) => /codegen-typescript/i.test(t));
+    const designIdx = titles.findIndex((t) => /design experiment/i.test(t));
+    const runIdx = titles.findIndex((t) => /experiment-run/i.test(t));
+    expect(codegenIdx).toBeGreaterThanOrEqual(0);
+    expect(designIdx).toBeGreaterThan(codegenIdx);
+    expect(runIdx).toBeGreaterThan(designIdx);
+  });
+
   it("is deterministic: same objective and targets → same step sequence", () => {
     const objective = "Investigate the mini-kv TTL implementation";
     const targets = [target({})];
