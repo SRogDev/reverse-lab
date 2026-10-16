@@ -26,6 +26,7 @@
     "format": "biome check --write .",
     "lint": "biome check .",
     "rea:probe": "node scripts/rea-probe.mjs",
+    "lab:investigate": "tsx src/demo/lab-investigate.ts",
     "start": "next start",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit"
