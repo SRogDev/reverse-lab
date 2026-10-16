@@ -143,11 +143,17 @@ export interface Store {
     investigationId: string,
     input: { kind: ArtifactKind; path: string; description: string },
   ): Promise<Artifact>;
+  /** Phase 3 additive read: fetch one artifact by id (null when absent). */
+  getArtifact(id: string): Promise<Artifact | null>;
+  /** Phase 3 additive read: artifacts registered for one investigation. */
+  listArtifacts(investigationId: string): Promise<Artifact[]>;
   addConclusion(
     investigationId: string,
     input: { statement: string; evidenceIds: string[]; limitations: string[] },
   ): Promise<Conclusion>;
   listConclusions(investigationId: string): Promise<Conclusion[]>;
+  /** Phase 3 additive read: runs recorded for one experiment spec. */
+  listExperimentRuns(experimentId: string): Promise<ExperimentRun[]>;
 }
 
 /** Thrown when a mutation targets a record that does not exist. */
@@ -658,6 +664,16 @@ export class FileStore implements Store {
     return artifact;
   }
 
+  async getArtifact(id: string): Promise<Artifact | null> {
+    const rows = await this.load<Artifact>("artifacts");
+    return rows.find((a) => a.id === id) ?? null;
+  }
+
+  async listArtifacts(investigationId: string): Promise<Artifact[]> {
+    const rows = await this.load<Artifact>("artifacts");
+    return rows.filter((a) => a.investigationId === investigationId);
+  }
+
   async addConclusion(
     investigationId: string,
     input: { statement: string; evidenceIds: string[]; limitations: string[] },
@@ -678,6 +694,11 @@ export class FileStore implements Store {
   async listConclusions(investigationId: string): Promise<Conclusion[]> {
     const rows = await this.load<Conclusion>("conclusions");
     return rows.filter((c) => c.investigationId === investigationId);
+  }
+
+  async listExperimentRuns(experimentId: string): Promise<ExperimentRun[]> {
+    const rows = await this.load<ExperimentRun>("experiment-runs");
+    return rows.filter((r) => r.experimentId === experimentId);
   }
 }
 
@@ -867,6 +888,14 @@ export class SupabaseStore implements Store {
     return notConfigured();
   }
 
+  async getArtifact(_id: string): Promise<Artifact | null> {
+    return notConfigured();
+  }
+
+  async listArtifacts(_investigationId: string): Promise<Artifact[]> {
+    return notConfigured();
+  }
+
   async addConclusion(
     _investigationId: string,
     _input: { statement: string; evidenceIds: string[]; limitations: string[] },
@@ -875,6 +904,10 @@ export class SupabaseStore implements Store {
   }
 
   async listConclusions(_investigationId: string): Promise<Conclusion[]> {
+    return notConfigured();
+  }
+
+  async listExperimentRuns(_experimentId: string): Promise<ExperimentRun[]> {
     return notConfigured();
   }
 }

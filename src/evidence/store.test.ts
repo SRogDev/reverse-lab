@@ -240,6 +240,55 @@ describe("FileStore", () => {
     const reopened = new FileStore({ dataDir: dir });
     expect(await reopened.getProject(project.id)).toEqual(project);
   });
+
+  it("reads artifacts by id and lists them per investigation", async () => {
+    const project = await store.createProject({ name: "p", objective: "o" });
+    const run = await store.createRun({
+      projectId: project.id,
+      objective: "investigate",
+    });
+    const other = await store.createRun({
+      projectId: project.id,
+      objective: "other",
+    });
+    const artifact = await store.addArtifact(run.id, {
+      kind: "implementation",
+      path: "artifacts/x.js",
+      description: "alt",
+    });
+    await store.addArtifact(other.id, {
+      kind: "report",
+      path: "artifacts/y.md",
+      description: "rep",
+    });
+    expect(await store.getArtifact(artifact.id)).toEqual(artifact);
+    expect(await store.getArtifact("nope")).toBeNull();
+    const listed = await store.listArtifacts(run.id);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.id).toBe(artifact.id);
+  });
+
+  it("lists experiment runs per experiment", async () => {
+    const project = await store.createProject({ name: "p", objective: "o" });
+    const run = await store.createRun({
+      projectId: project.id,
+      objective: "investigate",
+    });
+    const spec = await store.createExperiment(run.id, {
+      objective: "compare",
+      reference: { artifactId: "ref" },
+      procedure: ["run"],
+      measurements: ["m"],
+      repetitions: 1,
+      acceptance: "ok",
+    });
+    const runA = await store.addExperimentRun(spec.id, {});
+    await store.updateExperimentRun(runA.id, { status: "completed" });
+    const runs = await store.listExperimentRuns(spec.id);
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.id).toBe(runA.id);
+    expect(await store.listExperimentRuns("nope")).toEqual([]);
+  });
 });
 
 describe("SupabaseStore", () => {
