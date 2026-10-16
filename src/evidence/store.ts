@@ -32,7 +32,7 @@ import {
   type ResearchTarget,
   type ResearchTargetKind,
   type RunStatus,
-} from "../types";
+} from "../types.ts";
 
 /** Input for evidence the lab itself generates (id is content-addressed). */
 export type NewEvidence = Omit<Evidence, "id" | "createdAt"> & { id?: string };

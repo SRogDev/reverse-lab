@@ -22,6 +22,8 @@
     "dev": "next dev --turbopack",
     "format": "biome check --write .",
     "lint": "biome check .",
+    "mcp:server": "node --no-warnings src/mcp/server.ts",
+    "mcp:smoke": "node --no-warnings src/mcp/smoke.ts",
     "rea:probe": "node scripts/rea-probe.mjs",
     "start": "next start",
     "test": "vitest run --passWithNoTests",

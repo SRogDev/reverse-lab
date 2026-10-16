@@ -17,7 +17,7 @@
  */
 
 import { z } from "zod";
-import type { Store } from "../evidence/store";
+import type { Store } from "../evidence/store.ts";
 
 /** Error that becomes an MCP `isError` tool result (4xx-style). */
 export class ToolError extends Error {
@@ -162,7 +162,10 @@ async function resolveLimitations(
 async function requireRun(store: Store, investigationId: string) {
   const run = await store.getRun(investigationId);
   if (!run) {
-    throw new ToolError("not_found", `investigation not found: ${investigationId}`);
+    throw new ToolError(
+      "not_found",
+      `investigation not found: ${investigationId}`,
+    );
   }
   return run;
 }
