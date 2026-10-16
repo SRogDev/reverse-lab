@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.115",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "ai": "^7.0.142",
     "next": "16.4.2",
     "react": "19.3.1",
@@ -9,9 +10,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "jsdom": "^26.1.0",
     "rea-agents": "^6.5.0",
     "tsx": "^4.23.15",
     "typescript": "^5",
@@ -25,6 +30,8 @@
     "dev": "next dev --turbopack",
     "format": "biome check --write .",
     "lint": "biome check .",
+    "mcp:server": "node --no-warnings src/mcp/server.ts",
+    "mcp:smoke": "node --no-warnings src/mcp/smoke.ts",
     "rea:probe": "node scripts/rea-probe.mjs",
     "lab:investigate": "tsx src/demo/lab-investigate.ts",
     "start": "next start",

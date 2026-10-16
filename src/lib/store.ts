@@ -8,7 +8,7 @@
  */
 
 import { join } from "node:path";
-import { FileStore, type Store } from "../evidence/store";
+import { FileStore, type Store } from "../evidence/store.ts";
 
 let instance: Store | null = null;
 let instanceDir: string | undefined;

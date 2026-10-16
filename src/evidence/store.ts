@@ -32,7 +32,7 @@ import {
   type ResearchTarget,
   type ResearchTargetKind,
   type RunStatus,
-} from "../types";
+} from "../types.ts";
 
 /** Input for evidence the lab itself generates (id is content-addressed). */
 export type NewEvidence = Omit<Evidence, "id" | "createdAt"> & { id?: string };
@@ -126,6 +126,8 @@ export interface Store {
       notes?: string;
     },
   ): Promise<ExperimentRun>;
+  /** Runs recorded for one experiment spec, newest last. */
+  listExperimentRuns(experimentId: string): Promise<ExperimentRun[]>;
   updateExperimentRun(
     id: string,
     patch: {
@@ -152,8 +154,6 @@ export interface Store {
     input: { statement: string; evidenceIds: string[]; limitations: string[] },
   ): Promise<Conclusion>;
   listConclusions(investigationId: string): Promise<Conclusion[]>;
-  /** Phase 3 additive read: runs recorded for one experiment spec. */
-  listExperimentRuns(experimentId: string): Promise<ExperimentRun[]>;
 }
 
 /** Thrown when a mutation targets a record that does not exist. */
@@ -606,6 +606,11 @@ export class FileStore implements Store {
     return run;
   }
 
+  async listExperimentRuns(experimentId: string): Promise<ExperimentRun[]> {
+    const rows = await this.load<ExperimentRun>("experiment-runs");
+    return rows.filter((r) => r.experimentId === experimentId);
+  }
+
   async updateExperimentRun(
     id: string,
     patch: {
@@ -694,11 +699,6 @@ export class FileStore implements Store {
   async listConclusions(investigationId: string): Promise<Conclusion[]> {
     const rows = await this.load<Conclusion>("conclusions");
     return rows.filter((c) => c.investigationId === investigationId);
-  }
-
-  async listExperimentRuns(experimentId: string): Promise<ExperimentRun[]> {
-    const rows = await this.load<ExperimentRun>("experiment-runs");
-    return rows.filter((r) => r.experimentId === experimentId);
   }
 }
 
@@ -867,6 +867,10 @@ export class SupabaseStore implements Store {
     return notConfigured();
   }
 
+  async listExperimentRuns(_experimentId: string): Promise<ExperimentRun[]> {
+    return notConfigured();
+  }
+
   async updateExperimentRun(
     _id: string,
     _patch: {
@@ -904,10 +908,6 @@ export class SupabaseStore implements Store {
   }
 
   async listConclusions(_investigationId: string): Promise<Conclusion[]> {
-    return notConfigured();
-  }
-
-  async listExperimentRuns(_experimentId: string): Promise<ExperimentRun[]> {
     return notConfigured();
   }
 }

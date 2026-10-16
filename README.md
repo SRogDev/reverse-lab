@@ -20,7 +20,8 @@ Phase 0 (product & technical audit) is complete: REA is verified as the reverse-
 - [x] Sample target + probe (`samples/mini-kv`, `npm run rea:probe`) — real REA output, verified
 - [x] API routes per the Phase 1 contract (see below)
 - [ ] Investigation engine (Phase 3) — engine-dependent routes return honest `501`
-- [ ] UI views, MCP server (Phases 5–6)
+- [x] MCP server (Phase 6, on branch `phase-6-mcp`) — 7 tools over stdio, see [MCP](#mcp-server-phase-6)
+- [ ] UI views (Phase 5)
 
 All work is local-only until the GitHub account suspension is resolved (see [STATUS.md](STATUS.md)). The 15 MVP acceptance criteria in [docs/product/mvp-scope.md](docs/product/mvp-scope.md) are the definition of done.
 
@@ -70,7 +71,13 @@ reverse-lab/
 │   ├── services/lab.ts           # application services (routes + demo use these)
 │   ├── demo/lab-investigate.ts   # npm run lab:investigate — real end-to-end demo
 │   ├── lib/store.ts              # server store singleton (FileStore today)
-│   └── app/api/                  # API routes per the contract below
+│   ├── lib/api.ts                # typed fetch client for the UI (no deps)
+│   ├── lib/stats.ts              # mean/min/max/n over recorded rawValues
+│   ├── components/ui.tsx         # shared atoms: badges, evidence cards, states
+│   ├── components/timeline.tsx   # plan-step timeline visualization
+│   ├── mcp/                      # MCP server (Phase 6): 7 tools + stdio server + smoke
+│   ├── app/api/                  # API routes per the contract below
+│   └── app/                      # UI: page.tsx (landing), workspace/, investigation/[id]/, knowledge/[id]/
 ├── samples/mini-kv/              # hand-written REA probe target (TS -> dist JS)
 ├── scripts/rea-probe.mjs         # npm run rea:probe — real REA over the sample
 ├── supabase/migrations/          # SQL schema + RLS (Phase 2; live connection later)
@@ -119,6 +126,65 @@ The autonomous loop, all real, zero keys:
 - **Explanations** (`src/learning/explain.ts`) — pure functions grounded only in the data passed in; every claim cites evidence ids.
 
 Run the demo: `npm run lab:investigate -- --objective "Investigate the mini-kv TTL implementation and build a simpler alternative" --target samples/mini-kv`. Real REA probe, real tsc, real measurements (~5 min; set `REA_BIN` to `node_modules/rea-agents/scripts/rea.mjs` — the default — to skip the slow npx bootstrap). Exits 0 on completion.
+
+## UI (Phase 5)
+
+The web UI is plain Next.js App Router + `fetch` (no data-fetching libraries).
+Every view reads the real API above; views that need live state poll client-side.
+
+| Route | View | Data |
+|---|---|---|
+| `/` | Landing — what the lab does, how investigations work, example objectives | static |
+| `/workspace` | Research Workspace — project list + create form | `GET/POST /api/projects` |
+| `/workspace/[id]` | Project detail — objective, targets, runs, start investigation | `GET /api/projects/[id]`, `POST …/targets`, `POST /api/investigations` |
+| `/investigation/[id]` | Investigation View — live plan timeline (polls every 3 s), engine control, experiments | `GET /api/investigations/[id]`, `POST …/advance`, `POST …/continue`, `…/experiments`, `POST /api/experiments`, `POST /api/experiments/[id]/run` |
+| `/knowledge/[id]` | Knowledge Space — findings↔evidence linkage, verification badges, experiment comparison, conclusions | `GET …/results`, `GET …/experiments` |
+
+Design system (from `ui-ux-pro-max --design-system`): **Dark Mode (OLED)** —
+background `#0F172A`, card `#1B2336`, accent "run green" `#22C55E`;
+**Developer Mono** type pairing (JetBrains Mono headings/ids, IBM Plex Sans
+body). Tokens live in `src/app/globals.css` as `--color-*` variables.
+
+Honesty states in the UI: `POST …/advance` is owned by the engine worker and
+absent → the view shows "engine offline" instead of faking progress;
+`/continue` and experiment runs answer `501` → the API's own message is shown
+verbatim and nothing is recorded. Limitations always render verbatim; the
+experiment comparison table computes mean/min/max/n from recorded `rawValues`
+only (`src/lib/stats.ts`) and says so when no runs exist.
+
+Component smoke tests (`src/**/__tests__/*.test.tsx`, jsdom) use **mock**
+fixtures shaped like the real API responses — labeled as mocks in
+`src/app/__tests__/fixtures.ts`. New measurement math is unit-tested in
+`src/lib/stats.test.ts`.
+
+## MCP server (Phase 6)
+
+`src/mcp/` is an MCP server over stdio (`@modelcontextprotocol/sdk` 1.32.1,
+verified API) exposing the lab to agents — including Polygrow — as 7
+independent one-shot tools. They are thin adapters over the same `Store`
+interface the API routes use. Every claim-bearing output includes
+`evidence_ids` and `limitations`; there are no bare assertions.
+
+| Tool | Input | Output |
+|---|---|---|
+| `create_research_project` | `{name, objective, constraints?}` | `{project}` |
+| `start_investigation` | `{projectId, objective?}` | `{run}` (status `pending` until the Phase 3 engine lands) |
+| `get_investigation_status` | `{investigationId}` | `{run}` — status, `currentStep`, `plan` |
+| `get_investigation_results` | `{investigationId}` | `{run, findings, evidence, hypotheses, conclusions}` |
+| `list_research_findings` | `{investigationId, status?}` | `{findings}` |
+| `get_experiment_results` | `{experimentId}` | `{experiment, runs}` |
+| `continue_investigation` | `{investigationId, instruction}` | `{run}` — instruction recorded as a pending plan step |
+
+```bash
+npm run mcp:server  # serve over stdio (trust model: local machine)
+npm run mcp:smoke   # drive all 7 tools with the real SDK client (exit 0, zero keys)
+```
+
+Trust boundary: stdio = local machine; the HTTP transport design (API-key
+header, per-project scoping, RLS at the DB layer) is documented but not
+implemented — see [docs/architecture/mcp-auth.md](docs/architecture/mcp-auth.md).
+Polygrow integration guide (start → poll → fetch → continue, with a real
+smoke transcript): [docs/integrations/mcp-polygrow.md](docs/integrations/mcp-polygrow.md).
 
 ## REA integration notes (verified, not assumed)
 
