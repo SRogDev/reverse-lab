@@ -8,22 +8,27 @@ The user defines the engineering objective. Reverse Lab autonomously determines 
 
 ## Status
 
-**Phase 1 — Technical Proof of Concept (building locally, 2026-10-16).**
-
-Phase 0 (product & technical audit) is complete: REA is verified as the reverse-engineering engine (no pivot needed) and Vercel Sandbox is feasible for isolated execution. Phase 1 builds the technical foundation locally on branch `phase-1-foundation`:
+**MVP complete and validated locally (2026-10-16).** All 7 phases built on
+local branches, integrated on `integrate/all`, and validated 15/15 on
+`phase-7-validation` — see [STATUS.md](STATUS.md) and
+[docs/validation.md](docs/validation.md) (every criterion exercised for real:
+project → investigation → REA inspection → hypothesis → codegen →
+sandboxed experiment → real comparison → conclusions → continue →
+durability across restart → MCP).
 
 - [x] Next.js 16 + strict TypeScript + Biome + vitest scaffold (build/lint/test green)
 - [x] Shared domain contract (`src/types.ts`) — the verbatim shapes later phases depend on
 - [x] Execution abstraction (`src/execution/`) — sandboxed `LocalExecutor`; `VercelSandboxExecutor` fails honestly until configured
 - [x] REA CLI runner (`src/reverse-engineering/`) — real `rea-agents@6.5.0` evidence ingestion with `evidence_id` validation
-- [x] Evidence store (`src/evidence/`) — `FileStore` (JSON, zero keys, works today); `SupabaseStore` is an honest stub until Roger provides keys
+- [x] Evidence store (`src/evidence/`) — `FileStore` (JSON, zero keys, works today); `SupabaseStore` is an honest stub until Roger provides keys (schema + RLS ship as `.sql` in `supabase/migrations/`)
 - [x] Sample target + probe (`samples/mini-kv`, `npm run rea:probe`) — real REA output, verified
-- [x] API routes per the Phase 1 contract (see below)
-- [ ] Investigation engine (Phase 3) — engine-dependent routes return honest `501`
-- [x] MCP server (Phase 6, on branch `phase-6-mcp`) — 7 tools over stdio, see [MCP](#mcp-server-phase-6)
-- [ ] UI views (Phase 5)
+- [x] API routes per the contract below (incl. `POST /api/investigations/[id]/advance` and `/continue`)
+- [x] Investigation engine — planner (deterministic), orchestrator (plan → execute → revise), model providers (scripted today; AI Gateway is an honest stub until the key exists)
+- [x] Experiment runner (real measurements in the sandbox executor), codegen (`tsc --strict` in-executor), learning explanations (grounded, evidence-cited)
+- [x] MCP server — 7 tools over stdio, see [MCP](#mcp-server-phase-6)
+- [x] UI views — landing + Research Workspace + Investigation View + Knowledge Space
 
-All work is local-only until the GitHub account suspension is resolved (see [STATUS.md](STATUS.md)). The 15 MVP acceptance criteria in [docs/product/mvp-scope.md](docs/product/mvp-scope.md) are the definition of done.
+All work is local-only until the GitHub account suspension is resolved (see [STATUS.md](STATUS.md)). The 15 MVP acceptance criteria in [docs/product/mvp-scope.md](docs/product/mvp-scope.md) are the definition of done — **met 15/15**.
 
 ## Quickstart
 
@@ -145,12 +150,12 @@ background `#0F172A`, card `#1B2336`, accent "run green" `#22C55E`;
 **Developer Mono** type pairing (JetBrains Mono headings/ids, IBM Plex Sans
 body). Tokens live in `src/app/globals.css` as `--color-*` variables.
 
-Honesty states in the UI: `POST …/advance` is owned by the engine worker and
-absent → the view shows "engine offline" instead of faking progress;
-`/continue` and experiment runs answer `501` → the API's own message is shown
-verbatim and nothing is recorded. Limitations always render verbatim; the
-experiment comparison table computes mean/min/max/n from recorded `rawValues`
-only (`src/lib/stats.ts`) and says so when no runs exist.
+Honesty states in the UI: when the engine worker is offline the
+Investigation View shows "engine offline" instead of faking progress;
+limitations always render verbatim; the experiment comparison table computes
+mean/min/max/n from recorded `rawValues` only (`src/lib/stats.ts`) and says
+so when no runs exist. Failed steps and failed runs render with their error
+text — never converted into apparent successes.
 
 Component smoke tests (`src/**/__tests__/*.test.tsx`, jsdom) use **mock**
 fixtures shaped like the real API responses — labeled as mocks in

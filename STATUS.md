@@ -2,12 +2,13 @@
 
 ## Current
 
-**LOCAL-ONLY FULL BUILD COMPLETE** (Roger's explicit order 2026-10-16 ~01:12 CDT: "termina y guarda ahí en tu ordenador todo el proyecto de reverse lab sin miedo")
+**LOCAL-ONLY FULL BUILD COMPLETE + MVP VALIDATED 15/15** (Roger's explicit order 2026-10-16 ~01:12 CDT: "termina y guarda ahí en tu ordenador todo el proyecto de reverse lab sin miedo")
 
 - **Phase 0 COMPLETE** — all docs finished locally: foundation (PR #1, merged `94bdf5f`), product docs (PR #2, merged `7d7e686`), REA research docs + architecture/roadmap/commercial docs (PRs #3/#4, complete and staged locally, unpushed — see BLOCKED below).
-- **Phases 1–6 built locally and INTEGRATED** on branch `integrate/all` with zero GitHub API calls. Phase 7 (MVP validation) ran as the integration verification below — all green.
+- **Phases 1–6 built locally and INTEGRATED** on branch `integrate/all` with zero GitHub API calls.
+- **Phase 7 VALIDATION COMPLETE (2026-10-16, branch `phase-7-validation`): all 15 MVP acceptance criteria PASS**, each exercised for real against the build — evidence in [docs/validation.md](docs/validation.md). Validation found and fixed one real bug (commit `33f8238`): the engine registered an inspected *directory* as the experiment reference artifact and the runner failed with EISDIR — directory targets now resolve to a runnable entrypoint (`dist/index.js` …), and experiment design refuses honestly otherwise.
 - Skipping "compromising parts" per Roger's order: no commercial/billing internals in code, nothing requiring his keys/accounts/decisions (Supabase project, Vercel deploy, AI Gateway keys — env placeholders + setup docs only).
-- The 15 MVP acceptance criteria in `docs/product/mvp-scope.md` are the definition of done.
+- The 15 MVP acceptance criteria in `docs/product/mvp-scope.md` are the definition of done — **met**.
 
 ## Integration (branch `integrate/all`, 2026-10-16)
 
@@ -60,7 +61,7 @@ Merged in order, conflicts resolved with real judgment:
 - [x] Phase 4 — Experimental Engineering (runner with real measurements, codegen, learning)
 - [x] Phase 5 — Application UI (landing + 3 views, honesty states)
 - [x] Phase 6 — MCP Integration (7 tools, smoke green, rewired onto engine services)
-- [x] Phase 7 — MVP Validation (integration verification above; all green)
+- [x] Phase 7 — MVP Validation (15/15 criteria exercised live on `phase-7-validation`; [docs/validation.md](docs/validation.md); engine bug found + fixed)
 - [ ] Phase 8 — Future Commercialization (out of MVP; docs only)
 
 ## Branch ledger (local; become PRs once the account is restored)
@@ -73,8 +74,27 @@ Merged in order, conflicts resolved with real judgment:
 | `phase-5-ui` | landing + 3 views, design tokens, component tests |
 | `phase-6-mcp` | `src/mcp/` server + 7 tools + smoke, MCP docs |
 | `integrate/all` | **all of the above merged + rewire + verification** (this build) |
+| `phase-7-validation` | **validation of the integrated build**: 15/15 MVP criteria exercised live ([docs/validation.md](docs/validation.md)); engine bug fix (directory→entrypoint reference resolution, commit `33f8238`); STATUS/README final |
 
-Phase branches stay pristine for their future PRs; all integration work lives on `integrate/all` only.
+Phase branches stay pristine for their future PRs; all integration work lives on `integrate/all` only; validation work lives on `phase-7-validation` only.
+
+## Phase 7 validation summary (2026-10-16, all on `phase-7-validation`, zero keys)
+
+| Check | Result |
+|---|---|
+| 15/15 MVP criteria | ✅ all PASS — each exercised for real (see [docs/validation.md](docs/validation.md)) |
+| `npm test` | ✅ **30 files, 183 tests, all pass** |
+| `npx tsc --noEmit` | ✅ clean (strict) |
+| `npx biome check .` | ✅ clean (92 files) |
+| `npm run build` | ✅ exit 0 |
+| `npm run rea:probe` | ✅ exit 0 — real REA output, real `ev_…` ids, verbatim limitations |
+| `npm run mcp:smoke` | ✅ exit 0 over real stdio (7 tools, bad-id → isError) |
+| `npm run lab:investigate` | ✅ exit 0 — DEMO OK; reference wall_time_ms mean 18.760ms (n=5) vs alternative 45,233.864ms (n=5); correctness 1.000 both |
+| dev server HTTP flow | ✅ create → start → advance (8/8 steps) → results → continue (8→15 steps) → stop/restart → identical data from disk |
+| Failed runs visibility | ✅ failed investigation keeps `status: failed` + error text; failed experiment run keeps `failures[]` (recorded 120s harness timeout) |
+| No invented scores | ✅ spot-checked stats/runner/explain/knowledge view/comparison outputs — raw n/mean/min/max only |
+
+Honest partials: Supabase persistence validated at SQL/RLS level only (no live project — needs Roger's keys); AI Gateway provider is an honest stub (deterministic scripted provider used); Vercel Sandbox executor is an honest stub (LocalExecutor validated: fresh sandbox cwd, scrubbed env, timeouts).
 
 ## Decisions (Roger's)
 
