@@ -39,3 +39,17 @@ The repository holds product and research documentation only. No application cod
 - REA vs alternative tooling decision, after the audit lands (PR #3).
 - CI via `.github/workflows/*` needs a full-scope token (stored token lacks the `workflows` scope).
 - Supabase project + keys (needed in Phase 2).
+
+## BLOCKED (2026-10-16 ~04:53 UTC)
+
+- GitHub API now returns **403 "Sorry. Your account was suspended"** on every endpoint
+  (read and write, via the stored token acting as SRogDev). PRs #1 and #2 merged
+  minutes earlier; no further API calls are being made.
+- **Not lost:** PR #3 (docs/research/rea-*.md) and PR #4 (docs/architecture/*,
+  docs/roadmap/post-mvp.md, docs/commercial/*.md) are complete and staged in the
+  local workdir `~/workspace/reverse-lab/` (10 files, `git status` clean-staged).
+  Push them as PRs #3 and #4 once API access is restored.
+- **Next step for Roger:** check for a GitHub suspension/abuse notice (account email,
+  https://github.com/settings); the flag may be temporary (automation detection).
+  If the account is genuinely suspended, appeal via GitHub Support. Retry the
+  pending pushes after access is restored — no rework needed.
