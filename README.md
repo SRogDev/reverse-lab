@@ -62,6 +62,13 @@ reverse-lab/
 │   ├── execution/executor.ts     # Executor interface, LocalExecutor, VercelSandboxExecutor stub
 │   ├── reverse-engineering/rea.ts# REA CLI runner + evidence mapping (+ fixtures)
 │   ├── evidence/store.ts         # Store interface, FileStore, SupabaseStore stub
+│   ├── capabilities/registry.ts  # closed, honest capability list (verified only)
+│   ├── investigation-engine/     # planner (deterministic), orchestrator, model providers
+│   ├── experiments/              # runner (real measurements), KV benchmark harness
+│   ├── artifacts/codegen.ts      # deterministic TS alternatives (tsc-verified)
+│   ├── learning/explain.ts       # grounded explanations (pure functions)
+│   ├── services/lab.ts           # application services (routes + demo use these)
+│   ├── demo/lab-investigate.ts   # npm run lab:investigate — real end-to-end demo
 │   ├── lib/store.ts              # server store singleton (FileStore today)
 │   └── app/api/                  # API routes per the contract below
 ├── samples/mini-kv/              # hand-written REA probe target (TS -> dist JS)
@@ -80,23 +87,38 @@ reverse-lab/
 └── LICENSE                       # MIT
 ```
 
-## API contract (Phase 1)
+## API contract (Phases 1–4)
 
 | Method & path | Body | Returns |
 |---|---|---|
-| `POST /api/projects` | `{name, objective, constraints?}` | `{project}` |
+| `POST /api/projects` | `{name, objective, constraints?}` | `201 {project}` |
 | `GET /api/projects` | — | `{projects}` |
 | `GET /api/projects/[id]` | — | `{project, targets, runs}` |
-| `POST /api/projects/[id]/targets` | `{kind, ref}` | `{target}` |
-| `POST /api/investigations` | `{projectId, objective?}` | `{run}` |
+| `POST /api/projects/[id]/targets` | `{kind, ref}` | `201 {target}` |
+| `POST /api/investigations` | `{projectId, objective?}` | `201 {run}` — planned, status `running` |
 | `GET /api/investigations/[id]` | — | `{run}` |
-| `POST /api/investigations/[id]/continue` | `{instruction}` | `501` — engine not yet implemented |
+| `POST /api/investigations/[id]/advance` | `{maxSteps?}` | `{run}` — executes pending plan steps |
+| `POST /api/investigations/[id]/continue` | `{instruction}` | `{run}` — appends planned steps |
 | `GET /api/investigations/[id]/results` | — | `{findings, evidence, hypotheses, conclusions}` |
 | `GET /api/investigations/[id]/experiments` | — | `{experiments}` |
-| `POST /api/experiments` | `{investigationId, spec}` | `{experiment}` |
-| `POST /api/experiments/[id]/run` | — | `501` — engine not yet implemented |
+| `POST /api/experiments` | `{investigationId, spec}` | `201 {experiment}` |
+| `POST /api/experiments/[id]/run` | — | `{run}` — ExperimentRun with real measurements |
 
-Engine-dependent routes return honest `501 {error: "investigation engine not yet implemented"}` — never faked success.
+Expected failures use `ServiceError` → `{error}` with 400 (validation), 404 (not found), or 409 (advancing a failed run — revise or continue instead). A step that fails twice marks the run `failed` with the error visible — never converted into a success.
+
+## Investigation engine (Phases 3–4)
+
+The autonomous loop, all real, zero keys:
+
+- **Capability registry** (`src/capabilities/registry.ts`) — the closed list of what the lab can do: `rea-javascript-app` and `rea-sqlite` (verified against `rea-agents@6.5.0`), `rea-native` (`needs-configuration` — no engine installed, never scheduled), `codegen-typescript`, `experiment-run`. Nothing is invented; tests assert the exact set.
+- **Planner** (`src/investigation-engine/planner.ts`) — deterministic: detects target-kind hints and intent keywords, selects registry capabilities, emits steps, questions, expected evidence, evaluation criteria, constraints, and limitations. Codegen is always ordered before experiment design (the spec needs the alternative to exist).
+- **Orchestrator** (`src/investigation-engine/orchestrator.ts`) — `startInvestigation` (plan + persist + plan evidence), `advanceInvestigation` (sequential steps, one retry, then visible failure), `revisePlan` (keeps completed steps and all findings), `continueInvestigation` (appends instruction steps; hypotheses stay hypotheses).
+- **Model providers** (`src/investigation-engine/model.ts`) — `ScriptedModelProvider` (deterministic, honestly labeled) and `AIGatewayProvider` (real calls via the verified `ai@7.0.142` `generateText`/`stepCountIs` and `@ai-sdk/gateway` `createGateway` exports; honest error until `AI_GATEWAY_API_KEY` is set — see `.env.example`).
+- **Experiment runner** (`src/experiments/runner.ts`) — stages artifacts in a fresh sandbox cwd per run, executes the harness as a child process (scrubbed env, timeout), collects `spec.measurements × repetitions`, records full environment context (`nodeVersion`, `platform`, `arch`), `rawValues`, and `failures[]`. Comparisons are raw stats only (`n`, `mean`, `min`, `max`, `deltaVsReference`) — no composite scores.
+- **Codegen** (`src/artifacts/codegen.ts`) — deterministic template transforms (MVP: `map-to-object-store` — Map-based KV → plain-object store with eager TTL sweep), typechecked with `tsc --strict` inside the executor (failure throws; no pseudo-code), registered as an `implementation` Artifact linked to the hypothesis.
+- **Explanations** (`src/learning/explain.ts`) — pure functions grounded only in the data passed in; every claim cites evidence ids.
+
+Run the demo: `npm run lab:investigate -- --objective "Investigate the mini-kv TTL implementation and build a simpler alternative" --target samples/mini-kv`. Real REA probe, real tsc, real measurements (~5 min; set `REA_BIN` to `node_modules/rea-agents/scripts/rea.mjs` — the default — to skip the slow npx bootstrap). Exits 0 on completion.
 
 ## REA integration notes (verified, not assumed)
 
@@ -104,7 +126,7 @@ Engine-dependent routes return honest `501 {error: "investigation engine not yet
 - `evidence_id` is validated against `/^ev_[0-9a-f]{64}$/` on ingest; lab evidence uses content-addressed `lab-ev-<sha256>` ids (dedup on re-ingest).
 - `limitations[]` are stored and displayed verbatim — they are the honesty guarantees.
 - `rea doctor` reports missing native engines in this environment (expected zero-engine state); static JS/SQLite analysis needs no engines.
-- Under a minimal env, `npx -y rea-agents@6.5.0` takes ~70s to start; set `REA_BIN` to a pre-installed `rea` binary to skip npx (~5s). See `src/reverse-engineering/rea.ts`.
+- Under a minimal env, `npx -y rea-agents@6.5.0` takes ~70s to start; set `REA_BIN` to `node_modules/rea-agents/scripts/rea.mjs` (the real CLI entrypoint — note `dist/cli.js` is a library module and runs silently) or a global `rea` shim to skip npx (~13s). See `src/reverse-engineering/rea.ts`.
 
 ## Documentation
 

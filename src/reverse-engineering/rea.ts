@@ -17,11 +17,13 @@
  * executor's scrubbed env (PATH/HOME/LANG only), `npx -y rea-agents@6.5.0`
  * takes ~70s before REA itself starts (npx package handling; node/npm alone
  * are instant, and the identical command with a full env takes ~3s).
- * Invoking the REA CLI entrypoint directly takes ~5s. Operators that
- * pre-install rea-agents can set `REA_BIN` (via opts.env) to the CLI
- * binary (e.g. `<prefix>/node_modules/rea-agents/dist/cli.js`, run with
- * node, or a global `rea` shim) and skip npx entirely. The npx default is
- * kept because it self-bootstraps on a clean machine per the verified docs.
+ * Invoking the REA CLI entrypoint directly takes ~13s. Operators that
+ * pre-install rea-agents can set `REA_BIN` (via opts.env) to the real CLI
+ * entrypoint `<prefix>/node_modules/rea-agents/scripts/rea.mjs`
+ * (executable shebang — verified) or a global `rea` shim and skip npx
+ * entirely. NOTE: `dist/cli.js` is a library module, NOT the CLI — running
+ * it with node exits 0 with no output. The npx default is kept because it
+ * self-bootstraps on a clean machine per the verified docs.
  */
 
 import type { Executor } from "../execution/executor";

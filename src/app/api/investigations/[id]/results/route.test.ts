@@ -40,7 +40,11 @@ describe("GET /api/investigations/[id]/results", () => {
       conclusions: unknown[];
     };
     expect(body.findings).toEqual([]);
-    expect(body.evidence).toEqual([]);
+    // Phase 3: starting an investigation records the plan itself as evidence.
+    expect(body.evidence).toHaveLength(1);
+    expect((body.evidence[0] as { type: string }).type).toBe(
+      "investigation:plan",
+    );
     expect(body.hypotheses).toEqual([]);
     expect(body.conclusions).toEqual([]);
   });

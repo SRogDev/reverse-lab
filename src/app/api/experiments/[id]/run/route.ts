@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
+import { getServices } from "@/services/lab";
+import { toErrorResponse } from "../../../errors";
 
 /**
- * Executing an experiment (isolated run + measurements) needs the Phase 3/4
- * engine. Honest 501 until then — no experimentRun record is created, so
- * nothing can be mistaken for an executed experiment.
+ * Execute an experiment spec in the sandbox executor: stages the
+ * reference/alternative artifacts, runs the benchmark harness for
+ * spec.repetitions, and records the ExperimentRun with full environment
+ * context, rawValues, and failures.
  */
 export async function POST(
   _request: Request,
-  _ctx: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  return NextResponse.json(
-    { error: "investigation engine not yet implemented" },
-    { status: 501 },
-  );
+  const { id } = await params;
+  try {
+    const run = await getServices().runExperiment(id);
+    return NextResponse.json({ run });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
 }

@@ -1,24 +1,17 @@
 import { NextResponse } from "next/server";
-import { getStore } from "@/lib/store";
+import { getServices } from "@/services/lab";
+import { toErrorResponse } from "../../../errors";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const store = getStore();
-  const run = await store.getRun(id);
-  if (!run) {
-    return NextResponse.json(
-      { error: "investigation not found" },
-      { status: 404 },
-    );
+  try {
+    const { findings, evidence, hypotheses, conclusions } =
+      await getServices().getInvestigationResults(id);
+    return NextResponse.json({ findings, evidence, hypotheses, conclusions });
+  } catch (err) {
+    return toErrorResponse(err);
   }
-  const [findings, evidence, hypotheses, conclusions] = await Promise.all([
-    store.listFindings(id),
-    store.listEvidence(id),
-    store.listHypotheses(id),
-    store.listConclusions(id),
-  ]);
-  return NextResponse.json({ findings, evidence, hypotheses, conclusions });
 }
