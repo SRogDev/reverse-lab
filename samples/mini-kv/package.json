@@ -1,0 +1,8 @@
+{
+  "description": "Tiny in-memory KV store with TTL — REA probe target for Reverse Lab.",
+  "main": "dist/index.js",
+  "name": "mini-kv",
+  "private": true,
+  "types": "dist/index.d.ts",
+  "version": "0.1.0"
+}
