@@ -191,9 +191,23 @@ async function typecheckAndCompile(
   tsPath: string,
   jsPath: string,
 ): Promise<void> {
+  // The generated file is self-contained (no imports, no ambient types),
+  // so point typeRoots at an empty dir: otherwise tsc auto-includes the
+  // repo's @types from the executor cwd and fails on unrelated packages.
+  const emptyTypeRoots = join(deps.artifactsRoot, ".empty-typeroots");
+  await mkdir(emptyTypeRoots, { recursive: true });
+  const typeArgs = ["--typeRoots", emptyTypeRoots];
   const check = await deps.executor.run(
     "node",
-    [deps.tscBin, "--noEmit", "--strict", "--target", "es2022", tsPath],
+    [
+      deps.tscBin,
+      "--noEmit",
+      "--strict",
+      "--target",
+      "es2022",
+      ...typeArgs,
+      tsPath,
+    ],
     { cwd: ".", timeoutMs: 120_000 },
   );
   if (check.exitCode !== 0) {
@@ -212,6 +226,7 @@ async function typecheckAndCompile(
       "--module",
       "commonjs",
       "--noEmitOnError",
+      ...typeArgs,
       "--outDir",
       deps.artifactsRoot,
       tsPath,

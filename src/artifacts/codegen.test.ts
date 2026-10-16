@@ -140,6 +140,31 @@ describe("generateAlternative", () => {
     expect(codegen[0].observation).toContain("hyp-9");
   });
 
+  it(
+    "compiles even when the executor cwd contains unrelated @types packages",
+    { timeout: 120_000 },
+    async () => {
+      // Regression: tsc auto-includes @types from the executor cwd; the
+      // repo root has @types that fail under default moduleResolution.
+      // The generated file is self-contained, so codegen must not trip.
+      const first = await setup();
+      const artifactsRoot = mkdtempSync(join(tmpdir(), "lab-codegen-repo-"));
+      const repoDeps: CodegenDeps = {
+        store: first.deps.store,
+        executor: new LocalExecutor({ sandboxRoot: process.cwd() }),
+        artifactsRoot,
+        tscBin: TSC_BIN,
+      };
+      const artifact = await generateAlternative(
+        repoDeps,
+        first.investigationId,
+        first.referenceId,
+        "simpler alternative",
+      );
+      expect(artifact.path.endsWith(".js")).toBe(true);
+    },
+  );
+
   it("rejects unknown transforms instead of inventing one", async () => {
     const { deps, investigationId, referenceId } = await setup();
     await expect(
