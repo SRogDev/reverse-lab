@@ -91,7 +91,9 @@ function printEvidence(label, result) {
   }
   const limitations = parsed.limitations || [];
   console.log(`limitations (${limitations.length}, verbatim):`);
-  limitations.forEach((line, i) => console.log(`  [${i}] ${line}`));
+  limitations.forEach((line, i) => {
+    console.log(`  [${i}] ${line}`);
+  });
   return {
     ok: idOk,
     reason: idOk ? "ok" : "bad evidence_id format",

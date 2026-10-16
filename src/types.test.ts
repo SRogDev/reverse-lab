@@ -40,7 +40,7 @@ describe("id and timestamp helpers", () => {
 describe("evidence id conventions", () => {
   it("accepts well-formed REA evidence ids", () => {
     expect(isReaEvidenceId(`ev_${"a".repeat(64)}`)).toBe(true);
-    expect(isReaEvidenceId("ev_" + "0".repeat(64))).toBe(true);
+    expect(isReaEvidenceId(`ev_${"0".repeat(64)}`)).toBe(true);
   });
 
   it("rejects malformed REA evidence ids", () => {

@@ -343,8 +343,7 @@ export async function checkReadiness(
       scope_checks?: ReaScopeCheck[];
     };
     const hasReport =
-      typeof parsed.healthy === "boolean" ||
-      Array.isArray(parsed.scope_checks);
+      typeof parsed.healthy === "boolean" || Array.isArray(parsed.scope_checks);
     return {
       // ok = the command ran and produced a parseable report. A report that
       // says healthy:false (e.g. no native engines) still counts: doctor

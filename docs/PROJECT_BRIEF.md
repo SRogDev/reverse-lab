@@ -75,7 +75,17 @@ Explanations grounded in actual investigation results — architecture, flows, c
 
 ## 5. Roadmap
 
-- **Phase 0 — Product & Technical Audit** (current): understand requirements, audit REA's actual code, validate execution assumptions, identify risks, propose the smallest viable architecture. Deliverables: `docs/product/` (vision, core-workflows, mvp-scope), `docs/research/rea-*` (audit, capability-matrix, integration), `docs/architecture/` (system-architecture, execution-environments). No application code.
+**Phase 1 status (2026-10-16, local-only build):** the Phase 1 foundation is
+implemented on branch `phase-1-foundation` — shared domain contract
+(`src/types.ts`), sandboxed `LocalExecutor` (+ honest `VercelSandboxExecutor`
+stub), REA CLI runner with evidence mapping (verified against the real
+`rea-agents@6.5.0` output shapes), `FileStore` (+ honest `SupabaseStore`
+stub), `samples/mini-kv` probe target with `npm run rea:probe`, and the
+Phase 1 API contract (engine-dependent routes return honest `501`).
+Build/lint/test green, zero keys required. The investigation engine,
+experimental execution, UI, and MCP server are later phases.
+
+- **Phase 0 — Product & Technical Audit** (complete 2026-10-16): understand requirements, audit REA's actual code, validate execution assumptions, identify risks, propose the smallest viable architecture. Deliverables: `docs/product/` (vision, core-workflows, mvp-scope), `docs/research/rea-*` (audit, capability-matrix, integration), `docs/architecture/` (system-architecture, execution-environments).
 - **Phase 1 — Technical PoC**: minimal end-to-end path — invoke one verified RE capability, feed it input, interpret output, preserve evidence, run one compatible isolated experiment, store and retrieve the result. One small target. Validate real runtime constraints.
 - **Phase 2 — Core data model**: Supabase schema + migrations for projects, targets, runs, findings/evidence, experiments/results, artifacts. RLS. State survives refresh/navigation/recovery.
 - **Phase 3 — Investigation engine**: objective → plan → capabilities → execution → progress → findings → plan revision → structured result, on Vercel AI SDK + Gateway. Only the orchestration complexity the validated workflow needs.
