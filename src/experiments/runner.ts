@@ -30,17 +30,35 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { NotFoundError, type Store } from "../evidence/store";
-import type { Executor } from "../execution/executor";
+import { LocalExecutor, type Executor } from "../execution/executor";
 import { type ExperimentRun, type ExperimentSpec, nowIso } from "../types";
 
 /** JS source of the harness script (see HARNESS PROTOCOL above). */
 export type BenchmarkHarnessScript = string;
 
+/**
+ * Build the executor the runner needs: a LocalExecutor rooted at
+ * `<dataDir>/sandbox`, so every run gets a fresh `<sandbox>/<runId>/` cwd.
+ * Callers must use this instead of a differently-rooted executor — the
+ * runner resolves its cwd against the executor's root.
+ */
+export function experimentSandbox(dataDir: string): {
+  executor: LocalExecutor;
+  sandboxRoot: string;
+} {
+  const sandboxRoot = join(dataDir, "sandbox");
+  return { executor: new LocalExecutor({ sandboxRoot }), sandboxRoot };
+}
+
 export interface RunnerDeps {
   store: Store;
-  /** Must be rooted at `sandboxRoot` (e.g. new LocalExecutor({ sandboxRoot })). */
+  /**
+   * Must be rooted at `sandboxRoot` — build it with `experimentSandbox`
+   * (a LocalExecutor rooted at `<dataDir>/sandbox`). The runner resolves
+   * its per-run cwd against the executor's root.
+   */
   executor: Executor;
   sandboxRoot: string;
   /** Resolve an artifact id to an absolute file path readable on this host. */

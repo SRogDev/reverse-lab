@@ -8,7 +8,7 @@
  * LocalExecutor in the runExperiment test (trivial harness script).
  */
 
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -205,6 +205,11 @@ describe("experiments", () => {
     expect(expRun.status).toBe("completed");
     expect(expRun.rawValues["reference.wall_time_ms"]).toHaveLength(2);
     expect(expRun.environment.nodeVersion).toBe(process.version);
+    // The sandbox cwd lives under <dataDir>/sandbox/<runId> — never in the
+    // repo root or the caller's cwd (regression: the orchestrator once
+    // passed a mismatched executor root and scattered run dirs).
+    const sandboxEntries = readdirSync(join(engine.dataDir, "sandbox"));
+    expect(sandboxEntries).toContain(expRun.id);
 
     const results = await services.getExperimentResults(spec.id);
     expect(results.spec.id).toBe(spec.id);

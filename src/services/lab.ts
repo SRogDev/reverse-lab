@@ -26,6 +26,7 @@ import {
 } from "../experiments/kv-harness";
 import {
   compareExperimentRuns,
+  experimentSandbox,
   type MeasurementComparison,
   runExperiment,
 } from "../experiments/runner";
@@ -313,14 +314,13 @@ export function createServices(engine: EngineDeps): Services {
       if (!spec) {
         throw notFound("experiment", experimentId);
       }
-      // The runner needs an executor rooted at the sandbox dir; the
-      // engine's executor is rooted at the repo root (for REA/codegen),
-      // so a dedicated one is built here.
-      const sandboxRoot = join(engine.dataDir, "sandbox");
+      // The runner needs an executor rooted at <dataDir>/sandbox; the
+      // engine's executor is rooted at the repo root (for REA/codegen).
+      const { executor, sandboxRoot } = experimentSandbox(engine.dataDir);
       return runExperiment(
         {
           store,
-          executor: new LocalExecutor({ sandboxRoot }),
+          executor,
           sandboxRoot,
           artifactPath: async (artifactId: string) => {
             const artifact = await store.getArtifact(artifactId);
