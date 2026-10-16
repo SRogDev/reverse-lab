@@ -63,7 +63,12 @@ reverse-lab/
 │   ├── reverse-engineering/rea.ts# REA CLI runner + evidence mapping (+ fixtures)
 │   ├── evidence/store.ts         # Store interface, FileStore, SupabaseStore stub
 │   ├── lib/store.ts              # server store singleton (FileStore today)
-│   └── app/api/                  # API routes per the contract below
+│   ├── lib/api.ts                # typed fetch client for the UI (no deps)
+│   ├── lib/stats.ts              # mean/min/max/n over recorded rawValues
+│   ├── components/ui.tsx         # shared atoms: badges, evidence cards, states
+│   ├── components/timeline.tsx   # plan-step timeline visualization
+│   ├── app/api/                  # API routes per the contract below
+│   └── app/                      # UI: page.tsx (landing), workspace/, investigation/[id]/, knowledge/[id]/
 ├── samples/mini-kv/              # hand-written REA probe target (TS -> dist JS)
 ├── scripts/rea-probe.mjs         # npm run rea:probe — real REA over the sample
 ├── supabase/migrations/          # SQL schema + RLS (Phase 2; live connection later)
@@ -97,6 +102,36 @@ reverse-lab/
 | `POST /api/experiments/[id]/run` | — | `501` — engine not yet implemented |
 
 Engine-dependent routes return honest `501 {error: "investigation engine not yet implemented"}` — never faked success.
+
+## UI (Phase 5)
+
+The web UI is plain Next.js App Router + `fetch` (no data-fetching libraries).
+Every view reads the real API above; views that need live state poll client-side.
+
+| Route | View | Data |
+|---|---|---|
+| `/` | Landing — what the lab does, how investigations work, example objectives | static |
+| `/workspace` | Research Workspace — project list + create form | `GET/POST /api/projects` |
+| `/workspace/[id]` | Project detail — objective, targets, runs, start investigation | `GET /api/projects/[id]`, `POST …/targets`, `POST /api/investigations` |
+| `/investigation/[id]` | Investigation View — live plan timeline (polls every 3 s), engine control, experiments | `GET /api/investigations/[id]`, `POST …/advance`, `POST …/continue`, `…/experiments`, `POST /api/experiments`, `POST /api/experiments/[id]/run` |
+| `/knowledge/[id]` | Knowledge Space — findings↔evidence linkage, verification badges, experiment comparison, conclusions | `GET …/results`, `GET …/experiments` |
+
+Design system (from `ui-ux-pro-max --design-system`): **Dark Mode (OLED)** —
+background `#0F172A`, card `#1B2336`, accent "run green" `#22C55E`;
+**Developer Mono** type pairing (JetBrains Mono headings/ids, IBM Plex Sans
+body). Tokens live in `src/app/globals.css` as `--color-*` variables.
+
+Honesty states in the UI: `POST …/advance` is owned by the engine worker and
+absent → the view shows "engine offline" instead of faking progress;
+`/continue` and experiment runs answer `501` → the API's own message is shown
+verbatim and nothing is recorded. Limitations always render verbatim; the
+experiment comparison table computes mean/min/max/n from recorded `rawValues`
+only (`src/lib/stats.ts`) and says so when no runs exist.
+
+Component smoke tests (`src/**/__tests__/*.test.tsx`, jsdom) use **mock**
+fixtures shaped like the real API responses — labeled as mocks in
+`src/app/__tests__/fixtures.ts`. New measurement math is unit-tested in
+`src/lib/stats.test.ts`.
 
 ## REA integration notes (verified, not assumed)
 
