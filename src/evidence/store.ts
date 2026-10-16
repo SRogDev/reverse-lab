@@ -126,6 +126,8 @@ export interface Store {
       notes?: string;
     },
   ): Promise<ExperimentRun>;
+  /** Runs recorded for one experiment, newest last. */
+  listExperimentRuns(experimentId: string): Promise<ExperimentRun[]>;
   updateExperimentRun(
     id: string,
     patch: {
@@ -600,6 +602,11 @@ export class FileStore implements Store {
     return run;
   }
 
+  async listExperimentRuns(experimentId: string): Promise<ExperimentRun[]> {
+    const rows = await this.load<ExperimentRun>("experiment-runs");
+    return rows.filter((r) => r.experimentId === experimentId);
+  }
+
   async updateExperimentRun(
     id: string,
     patch: {
@@ -843,6 +850,10 @@ export class SupabaseStore implements Store {
       notes?: string;
     },
   ): Promise<ExperimentRun> {
+    return notConfigured();
+  }
+
+  async listExperimentRuns(_experimentId: string): Promise<ExperimentRun[]> {
     return notConfigured();
   }
 
