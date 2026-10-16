@@ -36,6 +36,7 @@ import type { Executor } from "../execution/executor";
 import {
   type BenchmarkHarnessScript,
   compareExperimentRuns,
+  experimentSandbox,
   type MeasurementComparison,
   runExperiment,
 } from "../experiments/runner";
@@ -324,8 +325,15 @@ async function designExperiment(
   if (!reference) {
     throw new Error("cannot design an experiment without a reference artifact");
   }
+  // The alternative is the codegen output — identified by its description
+  // prefix (see generateAlternative). The inspect step also registers an
+  // "implementation" artifact (the target directory, not runnable), which
+  // must never be picked as the alternative.
   const alternatives = artifacts.filter(
-    (a) => a.kind === "implementation" && a.id !== reference.id,
+    (a) =>
+      a.kind === "implementation" &&
+      a.id !== reference.id &&
+      a.description.startsWith("Alternative implementation"),
   );
   const hypotheses = await store.listHypotheses(run.id);
   const hypothesis = hypotheses[hypotheses.length - 1];
@@ -390,11 +398,14 @@ async function runExperimentsStep(
     );
   }
   for (const spec of specs) {
+    // The sandbox executor is rooted at <dataDir>/sandbox — never the
+    // engine's executor (rooted at the repo root for REA/codegen).
+    const { executor, sandboxRoot } = experimentSandbox(deps.dataDir);
     const expRun = await runExperiment(
       {
         store,
-        executor: deps.executor,
-        sandboxRoot: join(deps.dataDir, "sandbox"),
+        executor,
+        sandboxRoot,
         artifactPath: async (artifactId: string) => {
           const artifact = await store.getArtifact(artifactId);
           if (!artifact) {
@@ -439,6 +450,14 @@ async function runExperimentsStep(
         ...evidence.limitations,
       ],
     });
+    if (expRun.status === "failed") {
+      // The failure is recorded above (run record, evidence, conclusion);
+      // the step still fails visibly so it is retried once, then fails the
+      // run — a failed experiment is never converted into a success.
+      throw new Error(
+        `experiment ${spec.id} failed: ${expRun.failures.join(" | ")}`,
+      );
+    }
   }
 }
 
