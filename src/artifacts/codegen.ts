@@ -26,9 +26,9 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Artifact, Store } from "../evidence/store";
+import type { Store } from "../evidence/store";
 import type { Executor } from "../execution/executor";
-import { generateId, nowIso } from "../types";
+import { generateId, nowIso, type Artifact } from "../types";
 
 export type CodegenTransform = "map-to-object-store";
 

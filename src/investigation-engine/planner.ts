@@ -71,7 +71,7 @@ function detect(objective: string, targets: ResearchTarget[]): DetectedIntent {
 }
 
 /** Pull "the X implementation" out of the objective for targeted questions. */
-function mechanismWord(objective: string): string {
+export function mechanismWord(objective: string): string {
   const match = /the\s+([a-z0-9_-]+(?:\s+[a-z0-9_-]+)?)\s+implementation/i.exec(
     objective,
   );

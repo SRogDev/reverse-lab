@@ -17,7 +17,6 @@ import { describe, expect, it } from "vitest";
 import { FileStore, NotFoundError, type Store } from "../evidence/store";
 import type { Executor, RunResult } from "../execution/executor";
 import {
-  type BenchmarkHarnessScript,
   compareExperimentRuns,
   type RunnerDeps,
   runExperiment,
@@ -126,9 +125,9 @@ describe("runExperiment", () => {
   it("records full environment context", async () => {
     const { deps, specId } = await setup();
     const run = await runExperiment(deps, specId);
-    expect(run.environment["nodeVersion"]).toBe(process.version);
-    expect(run.environment["platform"]).toBe(process.platform);
-    expect(run.environment["arch"]).toBe(process.arch);
+    expect(run.environment.nodeVersion).toBe(process.version);
+    expect(run.environment.platform).toBe(process.platform);
+    expect(run.environment.arch).toBe(process.arch);
   });
 
   it("records harness failures visibly instead of hiding them", async () => {

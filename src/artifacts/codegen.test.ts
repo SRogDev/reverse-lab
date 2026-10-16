@@ -144,7 +144,9 @@ describe("generateAlternative", () => {
     const { deps, investigationId, referenceId } = await setup();
     await expect(
       generateAlternative(deps, investigationId, referenceId, "whatever", {
-        transform: "quantum-kv",
+        // Deliberate type escape: the runtime must reject unknown transforms
+        // for plain-JS callers the compiler cannot see.
+        transform: "quantum-kv" as unknown as "map-to-object-store",
       }),
     ).rejects.toThrow(/unknown transform/i);
   });

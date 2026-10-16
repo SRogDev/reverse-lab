@@ -31,14 +31,9 @@
 
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
-import {
-  type ExperimentRun,
-  type ExperimentSpec,
-  NotFoundError,
-  type Store,
-} from "../evidence/store";
+import { NotFoundError, type Store } from "../evidence/store";
 import type { Executor } from "../execution/executor";
-import { nowIso } from "../types";
+import { nowIso, type ExperimentRun, type ExperimentSpec } from "../types";
 
 /** JS source of the harness script (see HARNESS PROTOCOL above). */
 export type BenchmarkHarnessScript = string;

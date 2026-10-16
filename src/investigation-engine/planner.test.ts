@@ -90,7 +90,7 @@ describe("planObjective", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const step of plan.steps) {
       expect(step.detail).toBeDefined();
-      expect(step.detail!.length).toBeGreaterThan(0);
+      expect(step.detail?.length).toBeGreaterThan(0);
     }
   });
 });
