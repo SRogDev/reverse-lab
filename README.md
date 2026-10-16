@@ -20,7 +20,8 @@ Phase 0 (product & technical audit) is complete: REA is verified as the reverse-
 - [x] Sample target + probe (`samples/mini-kv`, `npm run rea:probe`) — real REA output, verified
 - [x] API routes per the Phase 1 contract (see below)
 - [ ] Investigation engine (Phase 3) — engine-dependent routes return honest `501`
-- [ ] UI views, MCP server (Phases 5–6)
+- [x] MCP server (Phase 6, on branch `phase-6-mcp`) — 7 tools over stdio, see [MCP](#mcp-server-phase-6)
+- [ ] UI views (Phase 5)
 
 All work is local-only until the GitHub account suspension is resolved (see [STATUS.md](STATUS.md)). The 15 MVP acceptance criteria in [docs/product/mvp-scope.md](docs/product/mvp-scope.md) are the definition of done.
 
@@ -63,6 +64,7 @@ reverse-lab/
 │   ├── reverse-engineering/rea.ts# REA CLI runner + evidence mapping (+ fixtures)
 │   ├── evidence/store.ts         # Store interface, FileStore, SupabaseStore stub
 │   ├── lib/store.ts              # server store singleton (FileStore today)
+│   ├── mcp/                      # MCP server (Phase 6): 7 tools + stdio server + smoke
 │   └── app/api/                  # API routes per the contract below
 ├── samples/mini-kv/              # hand-written REA probe target (TS -> dist JS)
 ├── scripts/rea-probe.mjs         # npm run rea:probe — real REA over the sample
@@ -97,6 +99,35 @@ reverse-lab/
 | `POST /api/experiments/[id]/run` | — | `501` — engine not yet implemented |
 
 Engine-dependent routes return honest `501 {error: "investigation engine not yet implemented"}` — never faked success.
+
+## MCP server (Phase 6)
+
+`src/mcp/` is an MCP server over stdio (`@modelcontextprotocol/sdk` 1.32.1,
+verified API) exposing the lab to agents — including Polygrow — as 7
+independent one-shot tools. They are thin adapters over the same `Store`
+interface the API routes use. Every claim-bearing output includes
+`evidence_ids` and `limitations`; there are no bare assertions.
+
+| Tool | Input | Output |
+|---|---|---|
+| `create_research_project` | `{name, objective, constraints?}` | `{project}` |
+| `start_investigation` | `{projectId, objective?}` | `{run}` (status `pending` until the Phase 3 engine lands) |
+| `get_investigation_status` | `{investigationId}` | `{run}` — status, `currentStep`, `plan` |
+| `get_investigation_results` | `{investigationId}` | `{run, findings, evidence, hypotheses, conclusions}` |
+| `list_research_findings` | `{investigationId, status?}` | `{findings}` |
+| `get_experiment_results` | `{experimentId}` | `{experiment, runs}` |
+| `continue_investigation` | `{investigationId, instruction}` | `{run}` — instruction recorded as a pending plan step |
+
+```bash
+npm run mcp:server  # serve over stdio (trust model: local machine)
+npm run mcp:smoke   # drive all 7 tools with the real SDK client (exit 0, zero keys)
+```
+
+Trust boundary: stdio = local machine; the HTTP transport design (API-key
+header, per-project scoping, RLS at the DB layer) is documented but not
+implemented — see [docs/architecture/mcp-auth.md](docs/architecture/mcp-auth.md).
+Polygrow integration guide (start → poll → fetch → continue, with a real
+smoke transcript): [docs/integrations/mcp-polygrow.md](docs/integrations/mcp-polygrow.md).
 
 ## REA integration notes (verified, not assumed)
 

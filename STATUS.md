@@ -15,6 +15,7 @@ The repository holds product and research documentation only. No application cod
 | 2026-10-16 | Product docs (PR #2): vision, core workflows, MVP scope                                         |
 | 2026-10-16 | REA research docs (PR #3): audit, capability matrix, integration (or pivot)                     |
 | 2026-10-16 | Architecture + roadmap + commercial docs (PR #4)                                                |
+| 2026-10-16 | MCP server (Phase 6, branch `phase-6-mcp`): 7 tools over stdio, smoke green, auth design + Polygrow integration docs |
 
 ## Roadmap phases
 
@@ -24,7 +25,7 @@ The repository holds product and research documentation only. No application cod
 - [ ] Phase 3 — Investigation Engine
 - [ ] Phase 4 — Experimental Engineering
 - [ ] Phase 5 — Application UI
-- [ ] Phase 6 — MCP Integration
+- [x] Phase 6 — MCP Integration (built on branch `phase-6-mcp`, 2026-10-16)
 - [ ] Phase 7 — MVP Validation
 - [ ] Phase 8 — Future Commercialization (out of MVP)
 
