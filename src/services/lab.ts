@@ -18,25 +18,25 @@ import {
   type NewExperimentSpec,
   NotFoundError,
   type Store,
-} from "../evidence/store";
-import { LocalExecutor } from "../execution/executor";
+} from "../evidence/store.ts";
+import { LocalExecutor } from "../execution/executor.ts";
 import {
   KV_BENCHMARK_HARNESS,
   KV_MEASUREMENTS,
-} from "../experiments/kv-harness";
+} from "../experiments/kv-harness.ts";
 import {
   compareExperimentRuns,
   experimentSandbox,
   type MeasurementComparison,
   runExperiment,
-} from "../experiments/runner";
+} from "../experiments/runner.ts";
 import {
   advanceInvestigation,
   continueInvestigation,
   type EngineDeps,
   startInvestigation,
-} from "../investigation-engine/orchestrator";
-import { getStore } from "../lib/store";
+} from "../investigation-engine/orchestrator.ts";
+import { getStore } from "../lib/store.ts";
 import type {
   Artifact,
   Conclusion,

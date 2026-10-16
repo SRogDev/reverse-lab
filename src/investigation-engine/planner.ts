@@ -12,8 +12,8 @@
  * cannot execute.
  */
 
-import { getCapability } from "../capabilities/registry";
-import { generateId, type PlanStep, type ResearchTarget } from "../types";
+import { getCapability } from "../capabilities/registry.ts";
+import { generateId, type PlanStep, type ResearchTarget } from "../types.ts";
 
 export interface InvestigationPlan {
   steps: PlanStep[];

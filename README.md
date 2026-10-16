@@ -168,12 +168,12 @@ interface the API routes use. Every claim-bearing output includes
 | Tool | Input | Output |
 |---|---|---|
 | `create_research_project` | `{name, objective, constraints?}` | `{project}` |
-| `start_investigation` | `{projectId, objective?}` | `{run}` (status `pending` until the Phase 3 engine lands) |
+| `start_investigation` | `{projectId, objective?}` | `{run}` — engine drafts a deterministic plan, records it as evidence, run status `running` |
 | `get_investigation_status` | `{investigationId}` | `{run}` — status, `currentStep`, `plan` |
 | `get_investigation_results` | `{investigationId}` | `{run, findings, evidence, hypotheses, conclusions}` |
 | `list_research_findings` | `{investigationId, status?}` | `{findings}` |
 | `get_experiment_results` | `{experimentId}` | `{experiment, runs}` |
-| `continue_investigation` | `{investigationId, instruction}` | `{run}` — instruction recorded as a pending plan step |
+| `continue_investigation` | `{investigationId, instruction}` | `{run}` — engine plans the instruction, appends steps, run status `running` |
 
 ```bash
 npm run mcp:server  # serve over stdio (trust model: local machine)

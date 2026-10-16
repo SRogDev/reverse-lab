@@ -1,23 +1,19 @@
 /**
  * MCP tool definitions for Reverse Lab.
  *
- * Thin-adapter rule: every tool calls the same `Store` interface the Next.js
- * API routes use (`src/evidence/store.ts`). Tools are deliberately one-shot
- * calls — no session state lives here; the `Store` is the shared state.
+ * Thin-adapter rule: every tool calls the same application services
+ * (`src/services/lab.ts`) the Next.js API routes use — the `Store` is the
+ * shared state underneath. Tools are deliberately one-shot calls — no
+ * session state lives here.
  *
  * Evidence honesty: every claim-bearing output includes `evidence_ids` and
  * `limitations` next to the claim. Findings also carry their evidence's
  * limitations, resolved at read time from the store.
- *
- * REWIRE NOTE: `start_investigation` and `continue_investigation` currently
- * operate at the Store level (create runs, record steps). When the Phase 3
- * investigation engine lands in `src/services/`, these two tools delegate to
- * it instead — the store-level paths stay as the honest fallback and are
- * marked `// REWIRE` below.
  */
 
 import { z } from "zod";
 import type { Store } from "../evidence/store.ts";
+import { getServices, ServiceError } from "../services/lab.ts";
 
 /** Error that becomes an MCP `isError` tool result (4xx-style). */
 export class ToolError extends Error {
@@ -28,6 +24,26 @@ export class ToolError extends Error {
     this.name = "ToolError";
     this.code = code;
   }
+}
+
+/** Map service-layer failures to MCP tool errors (4xx-style codes). */
+function toToolError(err: unknown): ToolError {
+  if (err instanceof ToolError) {
+    return err;
+  }
+  if (err instanceof ServiceError) {
+    const code =
+      err.status === 404
+        ? "not_found"
+        : err.status === 400
+          ? "bad_request"
+          : "service_error";
+    return new ToolError(code, err.message);
+  }
+  return new ToolError(
+    "internal",
+    err instanceof Error ? err.message : String(err),
+  );
 }
 
 const projectSchema = z.object({
@@ -198,31 +214,30 @@ const createResearchProject: ToolDefinition = {
 const startInvestigation: ToolDefinition = {
   name: "start_investigation",
   description:
-    "Start an investigation run under a project. Creates the run record; " +
-    "autonomous execution begins when the Phase 3 engine lands (run stays pending).",
+    "Start an investigation run under a project. The engine drafts a " +
+    "deterministic plan from the objective and targets, records the plan " +
+    "as evidence, and starts the run (status running).",
   inputSchema: z.object({
     projectId: z.string().min(1),
     objective: z.string().min(1).optional(),
   }),
   outputSchema: z.object({ run: runSchema }),
-  execute: async (store, args) => {
+  execute: async (_store, args) => {
     const input = startInvestigation.inputSchema.parse(args) as {
       projectId: string;
       objective?: string;
     };
-    const project = await store.getProject(input.projectId);
-    if (!project) {
-      throw new ToolError("not_found", `project not found: ${input.projectId}`);
+    // Thin adapter over the application services — the same services the
+    // API routes use (POST /api/investigations).
+    try {
+      const run = await getServices().startInvestigation(
+        input.projectId,
+        input.objective,
+      );
+      return { run };
+    } catch (err) {
+      throw toToolError(err);
     }
-    // Mirrors POST /api/investigations.
-    // REWIRE: delegate to src/services when the Phase 3 engine lands —
-    // the engine will draft the plan and drive steps from here.
-    const objective =
-      typeof input.objective === "string" && input.objective.trim() !== ""
-        ? input.objective.trim()
-        : project.objective;
-    const run = await store.createRun({ projectId: project.id, objective });
-    return { run };
   },
 };
 
@@ -428,30 +443,29 @@ const getExperimentResults: ToolDefinition = {
 const continueInvestigation: ToolDefinition = {
   name: "continue_investigation",
   description:
-    "Append a steering instruction to an investigation as a pending plan step " +
-    "and mark the run running. Autonomous execution of the step begins when " +
-    "the Phase 3 engine lands.",
+    "Append a steering instruction to an investigation: the engine plans " +
+    "the instruction, appends its steps, and marks the run running.",
   inputSchema: z.object({
     investigationId: z.string().min(1),
     instruction: z.string().min(1),
   }),
   outputSchema: z.object({ run: runSchema }),
-  execute: async (store, args) => {
+  execute: async (_store, args) => {
     const input = continueInvestigation.inputSchema.parse(args) as {
       investigationId: string;
       instruction: string;
     };
-    const run = await requireRun(store, input.investigationId);
-    // Store-level version only: record the instruction; the engine executes it.
-    // REWIRE: delegate to src/services when the Phase 3 engine lands.
-    await store.addStep(run.id, {
-      title: input.instruction,
-      detail:
-        "Recorded via continue_investigation (MCP). Autonomous execution " +
-        "awaits the Phase 3 investigation engine; the step stays pending until then.",
-    });
-    const updated = await store.updateRunStatus(run.id, "running");
-    return { run: updated };
+    // Thin adapter over the application services — the engine plans the
+    // instruction and appends the steps (same as the API route).
+    try {
+      const run = await getServices().continueInvestigation(
+        input.investigationId,
+        input.instruction,
+      );
+      return { run };
+    } catch (err) {
+      throw toToolError(err);
+    }
   },
 };
 

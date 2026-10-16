@@ -18,11 +18,11 @@ create_research_project  { name, objective, constraints? } → { project }
 start_investigation      { projectId, objective? }         → { run }
 ```
 
-`start_investigation` creates the run record and returns it with
-`status: "pending"`. The objective defaults to the project's objective when
-omitted. (Until the Phase 3 engine lands, runs stay `pending` — the run
-record is real; autonomous execution is not. See the `// REWIRE` markers in
-`src/mcp/tools.ts`.)
+`start_investigation` delegates to the application services
+(`src/services/lab.ts`): the engine drafts a deterministic plan from the
+objective and targets, persists the steps, records the plan itself as
+evidence, and starts the run with `status: "running"`. The objective
+defaults to the project's objective when omitted.
 
 ### 2. Poll status
 

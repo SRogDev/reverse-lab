@@ -27,7 +27,7 @@
  */
 
 import type { Executor } from "../execution/executor";
-import { type Evidence, isReaEvidenceId, nowIso } from "../types";
+import { type Evidence, isReaEvidenceId, nowIso } from "../types.ts";
 
 /** Pinned REA package — the exact binary invoked by every runner call. */
 export const REA_PACKAGE = "rea-agents@6.5.0";

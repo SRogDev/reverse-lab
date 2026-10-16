@@ -30,8 +30,8 @@
  */
 
 import { isAbsolute, join } from "node:path";
-import { generateAlternative } from "../artifacts/codegen";
-import { NotFoundError, type Store } from "../evidence/store";
+import { generateAlternative } from "../artifacts/codegen.ts";
+import { NotFoundError, type Store } from "../evidence/store.ts";
 import type { Executor } from "../execution/executor";
 import {
   type BenchmarkHarnessScript,
@@ -39,21 +39,21 @@ import {
   experimentSandbox,
   type MeasurementComparison,
   runExperiment,
-} from "../experiments/runner";
+} from "../experiments/runner.ts";
 import {
   analyzeJavascriptApplication,
   inspectSqliteDatabase,
   type ReaCliEvidence,
   reaEvidenceToLabEvidence,
-} from "../reverse-engineering/rea";
+} from "../reverse-engineering/rea.ts";
 import {
   type ExperimentSpec,
   generateId,
   type InvestigationRun,
   nowIso,
   type PlanStep,
-} from "../types";
-import { mechanismWord, planObjective } from "./planner";
+} from "../types.ts";
+import { mechanismWord, planObjective } from "./planner.ts";
 
 export interface EngineDeps {
   store: Store;
