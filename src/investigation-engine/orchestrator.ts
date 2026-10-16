@@ -29,6 +29,7 @@
  *   opportunity findings (provisional), experiment design, final summary.
  */
 
+import { statSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { generateAlternative } from "../artifacts/codegen.ts";
 import { NotFoundError, type Store } from "../evidence/store.ts";
@@ -197,6 +198,51 @@ async function executeStep(
   throw new Error(`no executor for plan step "${step.title}"`);
 }
 
+/**
+ * Conventional runnable JS entrypoints probed inside a directory target.
+ * The REA inspect step analyzes the target as a whole, but the experiment
+ * harness must stage a single runnable file per variant — so the
+ * reference artifact points at the discovered entrypoint, not the
+ * directory (staging a directory fails with EISDIR in the runner).
+ */
+const ENTRYPOINT_CANDIDATES = [
+  "dist/index.js",
+  "dist/index.mjs",
+  "index.js",
+  "index.mjs",
+];
+
+/**
+ * Resolve the reference-implementation artifact path for an inspected
+ * target. A directory target resolves to its conventional runnable
+ * entrypoint when one exists; otherwise the target ref is returned
+ * unchanged and the experiment design step refuses honestly.
+ */
+export function resolveReferencePath(
+  absTarget: string,
+  targetRef: string,
+): string {
+  let isDir = false;
+  try {
+    isDir = statSync(absTarget).isDirectory();
+  } catch {
+    return targetRef;
+  }
+  if (!isDir) {
+    return targetRef;
+  }
+  for (const candidate of ENTRYPOINT_CANDIDATES) {
+    try {
+      if (statSync(join(absTarget, candidate)).isFile()) {
+        return join(targetRef, candidate);
+      }
+    } catch {
+      // try the next candidate
+    }
+  }
+  return targetRef;
+}
+
 /** Run the real REA CLI, ingest the evidence, register a reference artifact. */
 async function inspectWithRea(
   deps: EngineDeps,
@@ -230,11 +276,15 @@ async function inspectWithRea(
   }
   const labEvidence = reaEvidenceToLabEvidence(record);
   await store.addEvidence(run.id, { ...labEvidence, id: labEvidence.id });
+  const referencePath = resolveReferencePath(absTarget, targetRef);
+  const resolvedEntrypoint = referencePath !== targetRef;
   await store.addArtifact(run.id, {
     kind: "implementation",
-    path: targetRef,
+    path: referencePath,
     description:
-      `Reference target inspected with ${capabilityId} ` +
+      (resolvedEntrypoint
+        ? `Reference implementation: runnable entrypoint ${referencePath} discovered under inspected target ${targetRef} `
+        : `Reference target inspected with ${capabilityId} `) +
       `(${absTarget}); evidence ${labEvidence.id}`,
   });
 }
@@ -323,6 +373,27 @@ async function designExperiment(
   const reference = artifacts.find((a) => a.kind === "implementation");
   if (!reference) {
     throw new Error("cannot design an experiment without a reference artifact");
+  }
+  // The experiment harness stages one runnable file per variant. A
+  // directory reference (e.g. an inspected repo target with no discovered
+  // entrypoint) cannot be staged — refuse honestly instead of failing
+  // later with a cryptic EISDIR from the runner.
+  const referenceAbs = isAbsolute(reference.path)
+    ? reference.path
+    : join(deps.repoRoot, reference.path);
+  let referenceIsFile = false;
+  try {
+    referenceIsFile = statSync(referenceAbs).isFile();
+  } catch {
+    referenceIsFile = false;
+  }
+  if (!referenceIsFile) {
+    throw new Error(
+      `reference artifact ${reference.id} is not a runnable file ` +
+        `(${referenceAbs}). The experiment harness stages a single JS file ` +
+        `per variant — register a runnable reference artifact (e.g. ` +
+        `<target>/dist/index.js) before designing the experiment.`,
+    );
   }
   // The alternative is the codegen output — identified by its description
   // prefix (see generateAlternative). The inspect step also registers an

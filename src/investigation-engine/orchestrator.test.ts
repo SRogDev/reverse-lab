@@ -8,9 +8,9 @@
  * integration test with real executors.
  */
 
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { FileStore, type Store } from "../evidence/store";
 import type { Executor, RunResult } from "../execution/executor";
@@ -267,5 +267,51 @@ describe("continueInvestigation", () => {
     await expect(continueInvestigation(deps, started.id, "  ")).rejects.toThrow(
       /instruction is required/i,
     );
+  });
+});
+
+describe("directory targets (reference artifact resolution)", () => {
+  it("registers the runnable entrypoint as the reference artifact when the target is a directory", async () => {
+    const { deps, projectId } = await setup();
+    const entry = join(deps.repoRoot, "samples", "mini-kv", "dist", "index.js");
+    mkdirSync(dirname(entry), { recursive: true });
+    writeFileSync(entry, "module.exports = {};\n");
+    const started = await startInvestigation(deps, projectId);
+    const run = await advanceInvestigation(deps, started.id, { maxSteps: 1 });
+    expect(run.plan[0]?.status).toBe("completed");
+    const artifacts = await deps.store.listArtifacts(run.id);
+    const reference = artifacts.find((a) => a.kind === "implementation");
+    expect(reference?.path).toBe(
+      join("samples", "mini-kv", "dist", "index.js"),
+    );
+  });
+
+  it("designExperiment refuses honestly when the reference artifact is a directory", async () => {
+    const { deps, projectId } = await setup();
+    mkdirSync(join(deps.repoRoot, "samples", "mini-kv"), { recursive: true });
+    const run = await deps.store.createRun({
+      projectId,
+      objective: "compare the mini-kv implementation",
+    });
+    await deps.store.addArtifact(run.id, {
+      kind: "implementation",
+      path: "samples/mini-kv",
+      description: "Reference target inspected (directory, not runnable)",
+    });
+    const designStep = {
+      id: "design-1",
+      title:
+        "Design experiment: procedure, measurements, repetitions, acceptance",
+      status: "pending" as const,
+      detail: "internal: ExperimentSpec with reference artifact",
+    };
+    await deps.store.updateRun(run.id, {
+      status: "running",
+      plan: [designStep],
+    });
+    const advanced = await advanceInvestigation(deps, run.id);
+    expect(advanced.status).toBe("failed");
+    expect(advanced.plan[0]?.status).toBe("failed");
+    expect(advanced.plan[0]?.detail).toMatch(/not a runnable file/i);
   });
 });
