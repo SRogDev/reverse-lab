@@ -1,0 +1,29 @@
+{
+  "dependencies": {
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "vite": "^7.3.7",
+    "vitest": "5.0.5"
+  },
+  "name": "reverse-lab",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --turbopack",
+    "format": "biome check --write .",
+    "lint": "biome check .",
+    "rea:probe": "node scripts/rea-probe.mjs",
+    "start": "next start",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "version": "0.1.0"
+}
