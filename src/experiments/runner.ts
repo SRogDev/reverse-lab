@@ -33,7 +33,7 @@ import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { NotFoundError, type Store } from "../evidence/store";
 import type { Executor } from "../execution/executor";
-import { nowIso, type ExperimentRun, type ExperimentSpec } from "../types";
+import { type ExperimentRun, type ExperimentSpec, nowIso } from "../types";
 
 /** JS source of the harness script (see HARNESS PROTOCOL above). */
 export type BenchmarkHarnessScript = string;

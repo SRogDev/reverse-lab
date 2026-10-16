@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { getStore } from "@/lib/store";
+import { getServices } from "@/services/lab";
+import { readJsonBody, toErrorResponse } from "../errors";
 
 export async function POST(request: Request) {
-  let body: { projectId?: unknown; objective?: unknown };
-  try {
-    body = (await request.json()) as {
-      projectId?: unknown;
-      objective?: unknown;
-    };
-  } catch {
+  const body = (await readJsonBody(request)) as
+    | { projectId?: unknown; objective?: unknown }
+    | undefined;
+  if (body === undefined) {
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
   if (typeof body.projectId !== "string" || body.projectId.trim() === "") {
@@ -17,19 +15,15 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const store = getStore();
-  const project = await store.getProject(body.projectId);
-  if (!project) {
-    return NextResponse.json({ error: "project not found" }, { status: 404 });
+  try {
+    // Starting the investigation now plans and runs it (Phase 3 engine):
+    // the run comes back with its plan persisted and status "running".
+    const run = await getServices().startInvestigation(
+      body.projectId,
+      typeof body.objective === "string" ? body.objective : undefined,
+    );
+    return NextResponse.json({ run }, { status: 201 });
+  } catch (err) {
+    return toErrorResponse(err);
   }
-  // Creating the run record is real store work; the autonomous investigation
-  // itself starts when the Phase 3 engine exists (status stays "pending").
-  const run = await store.createRun({
-    projectId: project.id,
-    objective:
-      typeof body.objective === "string" && body.objective.trim() !== ""
-        ? body.objective.trim()
-        : project.objective,
-  });
-  return NextResponse.json({ run }, { status: 201 });
 }

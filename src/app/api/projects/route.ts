@@ -1,43 +1,28 @@
 import { NextResponse } from "next/server";
-import { getStore } from "@/lib/store";
-
-async function readJson(request: Request): Promise<unknown> {
-  try {
-    return await request.json();
-  } catch {
-    return undefined;
-  }
-}
+import { getServices } from "@/services/lab";
+import { readJsonBody, toErrorResponse } from "../errors";
 
 export async function POST(request: Request) {
-  const body = (await readJson(request)) as
-    | {
-        name?: unknown;
-        objective?: unknown;
-        constraints?: unknown;
-      }
+  const body = (await readJsonBody(request)) as
+    | { name?: unknown; objective?: unknown; constraints?: unknown }
     | undefined;
-  if (typeof body?.name !== "string" || body.name.trim() === "") {
-    return NextResponse.json({ error: "name is required" }, { status: 400 });
+  try {
+    const project = await getServices().createProject({
+      name: body?.name as string,
+      objective: body?.objective as string,
+      constraints: body?.constraints as string[] | undefined,
+    });
+    return NextResponse.json({ project }, { status: 201 });
+  } catch (err) {
+    return toErrorResponse(err);
   }
-  if (typeof body.objective !== "string" || body.objective.trim() === "") {
-    return NextResponse.json(
-      { error: "objective is required" },
-      { status: 400 },
-    );
-  }
-  const constraints = Array.isArray(body.constraints)
-    ? body.constraints.filter((c): c is string => typeof c === "string")
-    : [];
-  const project = await getStore().createProject({
-    name: body.name.trim(),
-    objective: body.objective.trim(),
-    constraints,
-  });
-  return NextResponse.json({ project }, { status: 201 });
 }
 
 export async function GET(_request: Request) {
-  const projects = await getStore().listProjects();
-  return NextResponse.json({ projects });
+  try {
+    const projects = await getServices().listProjects();
+    return NextResponse.json({ projects });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
 }

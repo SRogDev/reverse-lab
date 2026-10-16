@@ -34,11 +34,15 @@ describe("POST /api/investigations", () => {
         projectId: string;
         objective: string;
         status: string;
+        plan: { id: string; title: string; status: string }[];
       };
     };
     expect(body.run.projectId).toBe(project.id);
     expect(body.run.objective).toBe("custom objective");
-    expect(body.run.status).toBe("pending");
+    // Phase 3: starting an investigation plans and starts it — the run
+    // comes back with its plan persisted and status "running".
+    expect(body.run.status).toBe("running");
+    expect(body.run.plan.length).toBeGreaterThan(0);
   });
 
   it("defaults the run objective to the project's objective", async () => {
