@@ -6,8 +6,8 @@
  * call the tool handlers — no network, no keys.
  */
 import { describe, expect, it } from "vitest";
-import { getStore } from "../lib/store";
 import { setupIsolatedDataDir } from "../app/api/test-utils";
+import { getStore } from "../lib/store";
 import { ToolError, toolDefinitions } from "./tools";
 
 setupIsolatedDataDir();
@@ -89,14 +89,24 @@ describe("create_research_project", () => {
 });
 
 describe("start_investigation", () => {
-  it("creates a pending run, defaulting objective to the project's", async () => {
+  it("starts a running investigation with an engine-drafted plan, defaulting objective to the project's", async () => {
     const project = await makeProject();
     const result = (await execute("start_investigation", {
       projectId: project.id,
-    })) as { run: { projectId: string; objective: string; status: string } };
+    })) as {
+      run: {
+        projectId: string;
+        objective: string;
+        status: string;
+        plan: unknown[];
+      };
+    };
     expect(result.run.projectId).toBe(project.id);
     expect(result.run.objective).toBe(project.objective);
-    expect(result.run.status).toBe("pending");
+    // The tool delegates to the engine services: the plan is drafted and
+    // the run starts immediately (no longer a pending store-level record).
+    expect(result.run.status).toBe("running");
+    expect(result.run.plan.length).toBeGreaterThan(0);
   });
 
   it("throws ToolError for an unknown project", async () => {
@@ -116,7 +126,7 @@ describe("get_investigation_status", () => {
     const result = (await execute("get_investigation_status", {
       investigationId: started.run.id,
     })) as { run: { status: string; plan: unknown[] } };
-    expect(result.run.status).toBe("pending");
+    expect(result.run.status).toBe("running");
     expect(Array.isArray(result.run.plan)).toBe(true);
   });
 
@@ -172,9 +182,13 @@ describe("get_investigation_results and list_research_findings", () => {
     };
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0]?.title).toBe("writes are durable");
-    expect(result.evidence[0]?.observation).toBe(
-      "write() calls fsync before returning",
+    // The engine records its plan as evidence when the investigation starts,
+    // so the seeded evidence is found by observation, not by position.
+    const seeded = result.evidence.find(
+      (e) => e.observation === "write() calls fsync before returning",
     );
+    expect(seeded).toBeDefined();
+    expect(result.evidence.length).toBeGreaterThanOrEqual(2);
     expect(result.hypotheses).toHaveLength(1);
     expect(result.conclusions).toHaveLength(1);
   });
@@ -189,7 +203,11 @@ describe("get_investigation_results and list_research_findings", () => {
     };
     const finding = result.findings[0];
     expect(finding).toBeDefined();
-    expect(finding?.evidence_ids).toEqual([result.evidence[0]?.id]);
+    expect(finding?.evidence_ids).toHaveLength(1);
+    const linked = result.evidence.find(
+      (e) => e.id === finding?.evidence_ids[0],
+    );
+    expect(linked).toBeDefined();
     expect(finding?.limitations).toContain("observed on Linux only");
   });
 
@@ -252,11 +270,12 @@ describe("get_experiment_results", () => {
 });
 
 describe("continue_investigation", () => {
-  it("records the instruction as a pending plan step and marks the run running", async () => {
+  it("plans the instruction into new pending steps and keeps the run running", async () => {
     const project = await makeProject();
     const started = (await execute("start_investigation", {
       projectId: project.id,
-    })) as { run: { id: string } };
+    })) as { run: { id: string; plan: unknown[] } };
+    const before = started.run.plan.length;
     const result = (await execute("continue_investigation", {
       investigationId: started.run.id,
       instruction: "also probe the read path",
@@ -267,9 +286,14 @@ describe("continue_investigation", () => {
       };
     };
     expect(result.run.status).toBe("running");
-    const step = result.run.plan.at(-1);
-    expect(step?.title).toBe("also probe the read path");
-    expect(step?.status).toBe("pending");
+    // The tool delegates to the engine services: the instruction is planned
+    // and its steps appended (not recorded as a single verbatim step).
+    expect(result.run.plan.length).toBeGreaterThan(before);
+    const added = result.run.plan.slice(before);
+    expect(added.length).toBeGreaterThan(0);
+    for (const step of added) {
+      expect(step.status).toBe("pending");
+    }
   });
 
   it("throws ToolError for an unknown investigation", async () => {

@@ -32,7 +32,11 @@
 import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { NotFoundError, type Store } from "../evidence/store.ts";
-import { LocalExecutor, type Executor } from "../execution/executor.ts";
+import {
+  type Executor,
+  LocalExecutor,
+  type RunResult,
+} from "../execution/executor.ts";
 import { type ExperimentRun, type ExperimentSpec, nowIso } from "../types.ts";
 
 /** JS source of the harness script (see HARNESS PROTOCOL above). */
@@ -225,7 +229,7 @@ export async function runExperiment(
       }
       for (let rep = 1; rep <= spec.repetitions; rep++) {
         const context = `${variant.name} repetition ${rep}/${spec.repetitions}`;
-        let result;
+        let result: RunResult;
         try {
           result = await deps.executor.run("node", ["harness.mjs", staged], {
             cwd,

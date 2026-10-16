@@ -64,7 +64,7 @@ describe("POST /api/experiments/[id]/run", () => {
     expect(body.run.status).toBe("completed");
     expect(body.run.rawValues["reference.wall_time_ms"]).toHaveLength(2);
     expect(body.run.rawValues["reference.correctness"]).toEqual([1, 1]);
-    expect(body.run.environment["nodeVersion"]).toBe(process.version);
+    expect(body.run.environment.nodeVersion).toBe(process.version);
     expect(body.run.failures).toEqual([]);
   });
 

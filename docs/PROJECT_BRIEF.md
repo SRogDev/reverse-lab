@@ -75,15 +75,47 @@ Explanations grounded in actual investigation results — architecture, flows, c
 
 ## 5. Roadmap
 
-**Phase 1 status (2026-10-16, local-only build):** the Phase 1 foundation is
-implemented on branch `phase-1-foundation` — shared domain contract
-(`src/types.ts`), sandboxed `LocalExecutor` (+ honest `VercelSandboxExecutor`
-stub), REA CLI runner with evidence mapping (verified against the real
-`rea-agents@6.5.0` output shapes), `FileStore` (+ honest `SupabaseStore`
-stub), `samples/mini-kv` probe target with `npm run rea:probe`, and the
-Phase 1 API contract (engine-dependent routes return honest `501`).
-Build/lint/test green, zero keys required. The investigation engine,
-experimental execution, UI, and MCP server are later phases.
+**Local-only build status (2026-10-16, branch `integrate/all`):** Phases 0–6
+are built locally and integrated — zero GitHub API calls (account suspended;
+see STATUS.md). One local branch per phase (`phase-1-foundation`,
+`phase-2-data-model`, `phase-3-4-engine`, `phase-5-ui`, `phase-6-mcp`); they
+become PRs once the account is restored. Phase 7 (MVP validation) is the
+integration verification itself.
+
+- **Phase 1 — Technical PoC** (built): shared domain contract
+  (`src/types.ts`), sandboxed `LocalExecutor` (+ honest
+  `VercelSandboxExecutor` stub), REA CLI runner with evidence mapping
+  (verified against the real `rea-agents@6.5.0` output shapes), `FileStore`
+  (+ honest `SupabaseStore` stub), `samples/mini-kv` probe target with
+  `npm run rea:probe`, and the Phase 1 API contract. Zero keys required.
+- **Phase 2 — Core data model** (built): Supabase schema + migrations for
+  projects, targets, runs, findings/evidence, experiments/results, artifacts.
+  RLS. Ships as `.sql`; live connection waits for Roger's project + keys.
+- **Phase 3 — Investigation engine** (built): deterministic planner,
+  orchestrator (`start`/`advance`/`revise`/`continue`), capability registry
+  (REA JS + SQLite verified, native honest `needs-configuration`), model
+  providers (`ScriptedModelProvider` deterministic; `AIGatewayProvider`
+  honest error until `AI_GATEWAY_API_KEY` is set), `src/services/lab.ts` as
+  the single entry point for routes and the demo.
+- **Phase 4 — Experimental engineering** (built): experiment specs,
+  KV benchmark harness, sandboxed runner with real measurements
+  (`spec.measurements × repetitions`, full environment context, `failures[]`),
+  raw-stats comparisons (no composite scores), deterministic TS codegen
+  (`tsc --strict`-verified), grounded explanations. Failures stay visible.
+- **Phase 5 — Application UI** (built): landing + Research Workspace +
+  Investigation View (live plan timeline, engine control, experiments) +
+  Knowledge Space (findings↔evidence, verification badges, experiment
+  comparison, conclusions). Honesty states: engine-offline and 501s render
+  verbatim, never faked.
+- **Phase 6 — MCP integration** (built): 7 tools over stdio
+  (`@modelcontextprotocol/sdk` 1.32.1), real-SDK smoke test, auth design +
+  Polygrow integration docs. `start_investigation`/`continue_investigation`
+  delegate to the real engine services (rewired in integration).
+- **Phase 7 — MVP validation** (in progress): build, strict tsc, Biome zero,
+  full vitest suite, `rea:probe`, `mcp:smoke`, `lab:investigate` end-to-end,
+  dev-server HTTP flow — see STATUS.md for results.
+- **Phase 8 — Commercialization** (out of MVP): Research Credits accounting,
+  Polar, plans, limits, billing events, Resend notifications.
 
 - **Phase 0 — Product & Technical Audit** (complete 2026-10-16): understand requirements, audit REA's actual code, validate execution assumptions, identify risks, propose the smallest viable architecture. Deliverables: `docs/product/` (vision, core-workflows, mvp-scope), `docs/research/rea-*` (audit, capability-matrix, integration), `docs/architecture/` (system-architecture, execution-environments).
 - **Phase 1 — Technical PoC**: minimal end-to-end path — invoke one verified RE capability, feed it input, interpret output, preserve evidence, run one compatible isolated experiment, store and retrieve the result. One small target. Validate real runtime constraints.

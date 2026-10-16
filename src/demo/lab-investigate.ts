@@ -29,9 +29,9 @@ import {
   compareExperimentRuns,
   type MeasurementComparison,
 } from "../experiments/runner";
-import { createServices } from "../services/lab";
-import { explainLimitations } from "../learning/explain";
 import type { EngineDeps } from "../investigation-engine/orchestrator";
+import { explainLimitations } from "../learning/explain";
+import { createServices } from "../services/lab";
 import type { Hypothesis } from "../types";
 
 export interface DemoOptions {
@@ -117,10 +117,7 @@ export async function runDemo(opts: DemoOptions): Promise<DemoSummary> {
     log("target", `id=${target.id} kind=${target.kind} ref=${target.ref}`);
 
     let run = await services.startInvestigation(project.id);
-    log(
-      "plan",
-      run.plan.map((s, i) => `${i + 1}. ${s.title}`).join("\n"),
-    );
+    log("plan", run.plan.map((s, i) => `${i + 1}. ${s.title}`).join("\n"));
 
     // Register the runnable reference artifact BEFORE advancing: it becomes
     // the earliest implementation artifact, which codegen treats as the
@@ -137,7 +134,10 @@ export async function runDemo(opts: DemoOptions): Promise<DemoSummary> {
       path: stagedReference,
       description: `Reference: compiled mini-kv (${referenceJs}) — Map-based store, lazy TTL expiry`,
     });
-    log("reference artifact", `id=${referenceArtifact.id}\npath=${stagedReference}`);
+    log(
+      "reference artifact",
+      `id=${referenceArtifact.id}\npath=${stagedReference}`,
+    );
 
     while (run.status === "running") {
       run = await services.advanceInvestigation(run.id, { maxSteps: 2 });
@@ -272,7 +272,9 @@ async function main(): Promise<void> {
 // Only run the CLI when executed directly (not when imported by tests).
 if (process.argv[1]?.endsWith("lab-investigate.ts")) {
   main().catch((err) => {
-    console.error(`\nDEMO FAILED: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `\nDEMO FAILED: ${err instanceof Error ? err.message : String(err)}`,
+    );
     process.exit(1);
   });
 }

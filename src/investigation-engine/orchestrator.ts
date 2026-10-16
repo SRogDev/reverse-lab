@@ -47,7 +47,6 @@ import {
   reaEvidenceToLabEvidence,
 } from "../reverse-engineering/rea.ts";
 import {
-  type ExperimentSpec,
   generateId,
   type InvestigationRun,
   nowIso,
