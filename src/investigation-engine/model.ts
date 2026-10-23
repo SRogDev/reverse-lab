@@ -52,6 +52,16 @@ export class ScriptedModelProvider implements ModelProvider {
   }
 }
 
+/**
+ * Whether the given provider can perform free-form synthesis (LLM codegen).
+ * Only real model providers can: the scripted provider returns canned text
+ * keyed by prompt substrings, and routing that text into codegen would fake
+ * generated code. `undefined` (no provider wired) cannot synthesize either.
+ */
+export function canSynthesize(provider: ModelProvider | undefined): boolean {
+  return provider !== undefined && !(provider instanceof ScriptedModelProvider);
+}
+
 const NOT_CONFIGURED =
   "AI Gateway not configured — set AI_GATEWAY_API_KEY (see .env.example)";
 

@@ -1,10 +1,11 @@
 /**
  * Deterministic TypeScript code generation for alternative implementations.
  *
- * The MVP does NOT do free-form LLM code synthesis. `generateAlternative`
- * selects one of the documented, reviewed transforms below and emits its
- * fixed template. Deterministic means: same transform in → byte-identical
- * source out. The template is then:
+ * THIS module does NOT do free-form LLM code synthesis — that is the
+ * separate `llm-codegen.ts` module (contract-first, real-model-only).
+ * `generateAlternative` here selects one of the documented, reviewed
+ * transforms below and emits its fixed template. Deterministic means:
+ * same transform in → byte-identical source out. The template is then:
  * 1. typechecked with tsc `--noEmit --strict` INSIDE the executor
  *    (a type error throws — no pseudo-code ever ships), then
  * 2. compiled to CommonJS next to the source, and
