@@ -91,7 +91,7 @@ const FIXED_TS = [
 ].join("\n");
 
 function fenced(ts: string): string {
-  return "Here is the implementation:\n\n```ts\n" + ts + "\n```\n";
+  return `Here is the implementation:\n\n\`\`\`ts\n${ts}\n\`\`\`\n`;
 }
 
 const PROBE_SOURCE = [
