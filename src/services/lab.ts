@@ -31,6 +31,10 @@ import {
   runExperiment,
 } from "../experiments/runner.ts";
 import {
+  AIGatewayProvider,
+  ScriptedModelProvider,
+} from "../investigation-engine/model.ts";
+import {
   advanceInvestigation,
   continueInvestigation,
   type EngineDeps,
@@ -377,6 +381,13 @@ export function getServices(): Services {
     harnessScript: KV_BENCHMARK_HARNESS,
     measurements: [...KV_MEASUREMENTS],
     tscBin: join(repoRoot, "node_modules", "typescript", "lib", "tsc.js"),
+    // The model provider for LLM codegen: the real AI Gateway provider
+    // when its key is configured, the deterministic scripted provider
+    // otherwise — in which case the planner keeps the template transform
+    // and records the synthesis limitation (canSynthesize gate).
+    modelProvider: process.env.AI_GATEWAY_API_KEY
+      ? new AIGatewayProvider()
+      : new ScriptedModelProvider({}),
   };
   return createServices(engine);
 }

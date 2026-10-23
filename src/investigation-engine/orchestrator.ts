@@ -22,6 +22,9 @@
  * - rea-native: throws honestly — no native engine is installed
  *   (needs-configuration), so the step fails visibly instead of faking it.
  * - codegen-typescript: `generateAlternative` against the reference artifact.
+ * - codegen-llm-typescript: `generateSynthesizedAlternative` with a §8
+ *   contract built from the run; only planned when a real model provider
+ *   is wired (`canSynthesize`) — failures throw, like every other step.
  * - experiment-run: `runExperiment` for every spec of the run, then
  *   measurement evidence + conclusions from the raw comparison.
  * - internal steps (detail starts with `internal:`): evidence ingestion
@@ -32,6 +35,10 @@
 import { statSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { generateAlternative } from "../artifacts/codegen.ts";
+import {
+  type CodegenContract,
+  generateSynthesizedAlternative,
+} from "../artifacts/llm-codegen.ts";
 import { NotFoundError, type Store } from "../evidence/store.ts";
 import type { Executor } from "../execution/executor";
 import {
@@ -53,6 +60,7 @@ import {
   nowIso,
   type PlanStep,
 } from "../types.ts";
+import { canSynthesize, type ModelProvider } from "./model.ts";
 import { mechanismWord, planObjective } from "./planner.ts";
 
 export interface EngineDeps {
@@ -68,6 +76,14 @@ export interface EngineDeps {
   measurements: string[];
   /** Absolute path to typescript/lib/tsc.js for codegen. */
   tscBin: string;
+  /**
+   * Optional model provider. When it can synthesize (a real model — see
+   * `canSynthesize`), the planner selects `codegen-llm-typescript` for
+   * alternative-implementation objectives; otherwise the plan keeps the
+   * deterministic template and records the limitation. The demo and the
+   * unit tests run without one (scripted behavior only).
+   */
+  modelProvider?: ModelProvider;
 }
 
 function getStore(deps: EngineDeps): Store {
@@ -118,7 +134,9 @@ export async function startInvestigation(
     projectId,
     objective: finalObjective,
   });
-  const plan = planObjective(finalObjective, targets);
+  const plan = planObjective(finalObjective, targets, {
+    synthesisAvailable: canSynthesize(deps.modelProvider),
+  });
   for (const step of plan.steps) {
     await store.addStep(run.id, { title: step.title, detail: step.detail });
   }
@@ -163,6 +181,10 @@ async function executeStep(
   }
   if (capabilityId === "codegen-typescript") {
     await generateAlternativeStep(deps, run);
+    return;
+  }
+  if (capabilityId === "codegen-llm-typescript") {
+    await generateSynthesizedStep(deps, run);
     return;
   }
   if (capabilityId === "experiment-run") {
@@ -361,6 +383,84 @@ async function generateAlternativeStep(
     run.objective,
     { hypothesisId: hypotheses[hypotheses.length - 1]?.id },
   );
+}
+
+/**
+ * Generate the alternative by LLM synthesis. The §8 contract is built
+ * from the run BEFORE any generation: behavior to preserve and objective
+ * from the run, constraints from the project, and an evaluation
+ * procedure of tsc --strict now plus the experiment step's behavioral
+ * comparison later. The contract ships no probe tests at this level —
+ * behavioral judgment belongs to the experiment, not to generation.
+ * Failures throw, preserving the engine's one-retry + visible-failure
+ * semantics; the synthesis module has already recorded its own evidence.
+ */
+async function generateSynthesizedStep(
+  deps: EngineDeps,
+  run: InvestigationRun,
+): Promise<void> {
+  const store = getStore(deps);
+  const provider = deps.modelProvider;
+  if (!provider) {
+    throw new Error(
+      "codegen-llm-typescript planned but no model provider is wired into " +
+        "the engine — re-plan without synthesis or configure a provider",
+    );
+  }
+  const artifacts = await store.listArtifacts(run.id);
+  const reference = artifacts.find((a) => a.kind === "implementation");
+  if (!reference) {
+    throw new Error(
+      "no reference implementation artifact registered — the inspect step " +
+        "must complete before codegen",
+    );
+  }
+  const project = await store.getProject(run.projectId);
+  const hypotheses = await store.listHypotheses(run.id);
+  const contract: CodegenContract = {
+    behaviorToPreserve:
+      `The observable behavior of the reference implementation ` +
+      `(artifact ${reference.id}, ${reference.path}) that the objective ` +
+      `depends on: ${run.objective}`,
+    objective: run.objective,
+    constraints: [
+      ...(project?.constraints ?? []),
+      "Single self-contained TypeScript module; no imports",
+      "Never overwrite the reference implementation",
+    ],
+    requiredTests: [],
+    evaluationProcedure:
+      "tsc --noEmit --strict inside the Executor sandbox at generation " +
+      "time; behavioral comparison against the reference is performed by " +
+      "the experiment step (experiment-run), which runs the shared " +
+      "procedure on both artifacts",
+    targetContract:
+      `A self-contained TypeScript module interface-compatible with the ` +
+      `reference artifact ${reference.id} (${reference.path}). The exact ` +
+      `interface is UNVERIFIED at generation time — the experiment step ` +
+      `is what compares behavior.`,
+    hypothesisId: hypotheses[hypotheses.length - 1]?.id,
+  };
+  const result = await generateSynthesizedAlternative(
+    {
+      store,
+      executor: deps.executor,
+      artifactsRoot: join(deps.dataDir, "artifacts"),
+      tscBin: deps.tscBin,
+      provider,
+    },
+    run.id,
+    reference.id,
+    contract,
+  );
+  if (result.status === "unavailable") {
+    throw new Error(result.reason);
+  }
+  if (result.status === "failed") {
+    throw new Error(
+      `LLM synthesis failed after ${result.attempts} attempts: ${result.lastError}`,
+    );
+  }
 }
 
 /** Design the experiment spec: procedure, measurements, repetitions. */
@@ -653,7 +753,9 @@ export async function revisePlan(
   const run = await getRunOrThrow(store, runId);
   const project = await store.getProject(run.projectId);
   const targets = project ? await store.listTargets(project.id) : [];
-  const fresh = planObjective(run.objective, targets);
+  const fresh = planObjective(run.objective, targets, {
+    synthesisAvailable: canSynthesize(deps.modelProvider),
+  });
 
   const kept = run.plan.filter(
     (s) => s.status === "completed" || s.status === "failed",
@@ -709,7 +811,9 @@ export async function continueInvestigation(
   const run = await getRunOrThrow(store, runId);
   const project = await store.getProject(run.projectId);
   const targets = project ? await store.listTargets(project.id) : [];
-  const plan = planObjective(instruction, targets);
+  const plan = planObjective(instruction, targets, {
+    synthesisAvailable: canSynthesize(deps.modelProvider),
+  });
   for (const step of plan.steps) {
     await store.addStep(run.id, { title: step.title, detail: step.detail });
   }

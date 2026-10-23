@@ -2,10 +2,12 @@
  * Orchestrator tests — the investigation run lifecycle on the Store.
  *
  * A FakeExecutor serves canned REA evidence (never the real CLI) so these
- * unit tests stay fast and hermetic. Objectives avoid the words
+ * unit tests stay fast and hermetic. Most objectives avoid the words
  * "alternative"/"experiment" so no codegen/tsc is needed here; the full
  * pipeline (codegen + experiment) is covered by the labeled demo
- * integration test with real executors.
+ * integration test with real executors. The LLM-codegen dispatch tests
+ * at the bottom are the exception: a SynthesisExecutor fakes tsc success
+ * so only the planner→orchestrator→module routing is exercised.
  */
 
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -313,5 +315,110 @@ describe("directory targets (reference artifact resolution)", () => {
     expect(advanced.status).toBe("failed");
     expect(advanced.plan[0]?.status).toBe("failed");
     expect(advanced.plan[0]?.detail).toMatch(/not a runnable file/i);
+  });
+});
+
+/**
+ * LLM codegen dispatch (feat/llm-codegen): with a synthesizing provider
+ * wired, an alternative-implementation objective plans a
+ * codegen-llm-typescript step and the orchestrator executes it through
+ * the synthesis module. The executor fake answers tsc/probe invocations
+ * with success; verification rigor lives in llm-codegen.test.ts (real
+ * Executor + real tsc).
+ */
+class SynthesisExecutor extends FakeExecutor {
+  override async run(
+    cmd: string,
+    args: string[],
+    opts: { cwd: string; timeoutMs: number },
+  ): Promise<RunResult> {
+    if (args.some((a) => a.includes("analyze-javascript-application"))) {
+      return super.run(cmd, args, opts);
+    }
+    // tsc typecheck/emit and probe runs: succeed without executing.
+    return {
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+      durationMs: 1,
+      timedOut: false,
+    };
+  }
+}
+
+class FakeSynthesisProvider {
+  readonly providerLabel = "fake-synthesis (orchestrator test)";
+  readonly modelId = "fake-synthesis-1";
+  async complete(_prompt: string): Promise<string> {
+    return [
+      "```ts",
+      "export function get(key: string): string | undefined {",
+      "  return undefined;",
+      "}",
+      "```",
+    ].join("\n");
+  }
+}
+
+describe("LLM codegen step dispatch", () => {
+  it("plans and executes codegen-llm-typescript when a real provider is wired", async () => {
+    const { deps, projectId } = await setup();
+    const synthDeps: EngineDeps = {
+      ...deps,
+      executor: new SynthesisExecutor("ok"),
+      modelProvider: new FakeSynthesisProvider(),
+    };
+    const started = await startInvestigation(
+      synthDeps,
+      projectId,
+      "build a simpler alternative to the mini-kv store",
+    );
+    const synthStep = started.plan.find((s) =>
+      (s.detail ?? "").includes("capability=codegen-llm-typescript"),
+    );
+    expect(synthStep).toBeDefined();
+
+    const synthIndex = started.plan.findIndex((s) =>
+      (s.detail ?? "").includes("capability=codegen-llm-typescript"),
+    );
+    const run = await advanceInvestigation(synthDeps, started.id, {
+      maxSteps: synthIndex + 1,
+    });
+    expect(run.plan[synthIndex]?.status).toBe("completed");
+
+    const artifacts = await synthDeps.store.listArtifacts(run.id);
+    expect(
+      artifacts.some((a) =>
+        a.description.startsWith("Alternative implementation (LLM synthesis"),
+      ),
+    ).toBe(true);
+    const evidence = await synthDeps.store.listEvidence(run.id);
+    expect(evidence.some((e) => e.type === "codegen:llm-typescript")).toBe(
+      true,
+    );
+  });
+
+  it("without a provider the plan keeps the template step and records the limitation", async () => {
+    const { deps, projectId } = await setup();
+    const started = await startInvestigation(
+      deps,
+      projectId,
+      "build a simpler alternative to the mini-kv store",
+    );
+    expect(
+      started.plan.some((s) =>
+        (s.detail ?? "").includes("capability=codegen-typescript"),
+      ),
+    ).toBe(true);
+    expect(
+      started.plan.some((s) =>
+        (s.detail ?? "").includes("capability=codegen-llm-typescript"),
+      ),
+    ).toBe(false);
+    const evidence = await deps.store.listEvidence(started.id);
+    const planEvidence = evidence.find((e) => e.type === "investigation:plan");
+    expect(planEvidence?.limitations.join("\n")).toMatch(
+      /codegen-llm-typescript.*unavailable/i,
+    );
   });
 });

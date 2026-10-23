@@ -42,6 +42,25 @@ describe("planObjective", () => {
     expect(plan.expectedEvidence).toContain("codegen:typescript");
   });
 
+  it("selects LLM synthesis for alternatives when a real provider is configured", () => {
+    const plan = planObjective("build a simpler alternative", [target({})], {
+      synthesisAvailable: true,
+    });
+    const codegenStep = plan.steps.find((s) => /alternative/i.test(s.title));
+    expect(codegenStep?.detail).toContain("capability=codegen-llm-typescript");
+    expect(plan.expectedEvidence).toContain("codegen:llm-typescript");
+    expect(plan.expectedEvidence).not.toContain("codegen:typescript");
+  });
+
+  it("keeps the template and records the limitation when synthesis is unavailable", () => {
+    const plan = planObjective("build a simpler alternative", [target({})]);
+    const codegenStep = plan.steps.find((s) => /alternative/i.test(s.title));
+    expect(codegenStep?.detail).toContain("capability=codegen-typescript");
+    expect(plan.limitations.join("\n")).toMatch(
+      /codegen-llm-typescript.*unavailable/i,
+    );
+  });
+
   it("omits codegen when the objective only asks for understanding", () => {
     const plan = planObjective("understand how mini-kv works", [target({})]);
     const titles = plan.steps.map((s) => s.title).join("\n");

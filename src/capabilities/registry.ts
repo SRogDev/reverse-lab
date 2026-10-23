@@ -13,6 +13,11 @@
  *   Rizin, GDB). The entry exists to make the gap visible, not to fill it.
  * - `codegen-typescript` → src/artifacts/codegen.ts (deterministic
  *   transform, typechecked inside the executor).
+ * - `codegen-llm-typescript` → src/artifacts/llm-codegen.ts (contract-first
+ *   free-form synthesis by a real model provider, verified inside the
+ *   executor). Like `rea-native`, it is honest about its configuration
+ *   requirement: with only the deterministic scripted provider available
+ *   it reports unavailable — it never fakes generated code.
  * - `experiment-run` → src/experiments/runner.ts (isolated LocalExecutor
  *   runs, real measurements, no invented scores).
  *
@@ -128,6 +133,47 @@ const CAPABILITIES: Capability[] = [
     permission: "execute-sandbox",
   },
   {
+    id: "codegen-llm-typescript",
+    purpose:
+      "Generate a free-form TypeScript alternative implementation by LLM " +
+      "synthesis under a contract fixed BEFORE generation (behavior to " +
+      "preserve, objective, constraints, required probe tests, evaluation " +
+      "procedure, target contract — plan §8). The synthesized source is " +
+      "verified inside the sandbox executor (tsc --strict + contract " +
+      "probes) with a bounded repair loop (3 attempts), then registered " +
+      "as an implementation artifact with full attempt evidence.",
+    targetKinds: [],
+    inputSchema: {
+      investigationId: "string — the owning investigation run id",
+      referenceArtifactId:
+        "string — artifact id of the reference implementation",
+      contract:
+        "CodegenContract — behaviorToPreserve, objective, constraints[], " +
+        "requiredTests[] (executable probes), evaluationProcedure, " +
+        "targetContract, hypothesisId?",
+    },
+    outputKind: "implementation-artifact",
+    evidenceKind: "codegen:llm-typescript",
+    dependencies: [
+      "ai-gateway (AI_GATEWAY_API_KEY + AI_GATEWAY_MODEL)",
+      "typescript",
+      "node",
+    ],
+    limitations: [
+      "NEEDS-CONFIGURATION: requires a real model provider (AI Gateway). " +
+        "The deterministic scripted provider cannot synthesize — the " +
+        "capability reports unavailable with a reason instead of routing " +
+        "canned text into codegen.",
+      "Generated code is untrusted: it is only written and executed " +
+        "inside the Executor sandbox, never imported by the lab process.",
+      "Behavioral equivalence beyond the contract's probe tests is " +
+        "UNVERIFIED, and real-model synthesis quality is UNVERIFIED — no " +
+        "live model run has been performed in this environment (no AI " +
+        "Gateway key); behavioral tests use a fake provider.",
+    ],
+    permission: "execute-sandbox",
+  },
+  {
     id: "experiment-run",
     purpose:
       "Execute an experiment spec in a fresh sandbox directory: run the " +
@@ -160,6 +206,7 @@ export const KNOWN_CAPABILITY_IDS = [
   "rea-sqlite",
   "rea-native",
   "codegen-typescript",
+  "codegen-llm-typescript",
   "experiment-run",
 ] as const;
 

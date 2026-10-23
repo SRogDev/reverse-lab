@@ -72,4 +72,18 @@ describe("capability registry", () => {
     );
     expect(getCapability("experiment-run")?.permission).toBe("execute-sandbox");
   });
+
+  // Deliberate registry change (feat/llm-codegen): LLM synthesis joins the
+  // closed list — with the same honesty semantics as rea-native: the
+  // configuration requirement is stated in its limitations, never hidden.
+  it("codegen-llm-typescript is registered, sandbox-bound, and honest about needing a real model", () => {
+    const cap = getCapability("codegen-llm-typescript");
+    expect(cap).toBeDefined();
+    expect(cap?.permission).toBe("execute-sandbox");
+    expect(cap?.evidenceKind).toBe("codegen:llm-typescript");
+    const joined = cap?.limitations.join("\n") ?? "";
+    expect(joined).toMatch(/needs-configuration/i);
+    expect(joined).toMatch(/scripted provider cannot synthesize/i);
+    expect(joined).toMatch(/UNVERIFIED/);
+  });
 });

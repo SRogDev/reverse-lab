@@ -24,6 +24,17 @@ export interface InvestigationPlan {
   limitations: string[];
 }
 
+export interface PlannerOptions {
+  /**
+   * Whether a real model provider is configured (LLM synthesis possible).
+   * When an objective asks for an alternative implementation and synthesis
+   * is available, the plan selects `codegen-llm-typescript`; otherwise it
+   * keeps the deterministic template transform and records the synthesis
+   * limitation in the plan (plan limitations render verbatim in the UI).
+   */
+  synthesisAvailable?: boolean;
+}
+
 interface DetectedIntent {
   /** (capabilityId, targetRef) inspection steps, in target order. */
   inspections: Array<{ capabilityId: string; targetRef: string }>;
@@ -85,6 +96,7 @@ function step(title: string, detail: string): PlanStep {
 export function planObjective(
   objective: string,
   targets: ResearchTarget[],
+  opts: PlannerOptions = {},
 ): InvestigationPlan {
   const intent = detect(objective, targets);
   const steps: PlanStep[] = [];
@@ -129,14 +141,28 @@ export function planObjective(
   );
 
   if (intent.wantsAlternative) {
-    steps.push(
-      step(
-        "Generate alternative implementation (codegen-typescript)",
-        "capability=codegen-typescript; deterministic transform, tsc typecheck in sandbox; " +
-          "stored as Artifact linked to the hypothesis",
-      ),
-    );
-    expectedEvidence.push("codegen:typescript");
+    if (opts.synthesisAvailable) {
+      // A real model is configured: free-form synthesis under a §8
+      // contract fixed before generation (see llm-codegen.ts).
+      steps.push(
+        step(
+          "Generate alternative implementation (codegen-llm-typescript)",
+          "capability=codegen-llm-typescript; contract-first LLM synthesis, " +
+            "tsc --strict + contract probes in sandbox, bounded repair loop; " +
+            "stored as Artifact linked to the hypothesis",
+        ),
+      );
+      expectedEvidence.push("codegen:llm-typescript");
+    } else {
+      steps.push(
+        step(
+          "Generate alternative implementation (codegen-typescript)",
+          "capability=codegen-typescript; deterministic transform, tsc typecheck in sandbox; " +
+            "stored as Artifact linked to the hypothesis",
+        ),
+      );
+      expectedEvidence.push("codegen:typescript");
+    }
   }
   if (intent.wantsExperiment) {
     steps.push(
@@ -210,6 +236,15 @@ export function planObjective(
     limitations.push(
       "No native analysis engine is installed (rea doctor scope check fails): " +
         "native-binary questions cannot be answered in this environment.",
+    );
+  }
+  if (intent.wantsAlternative && !opts.synthesisAvailable) {
+    limitations.push(
+      "LLM synthesis (codegen-llm-typescript) is unavailable: no real model " +
+        "provider is configured (the deterministic scripted provider cannot " +
+        "synthesize). The deterministic template transform " +
+        "(codegen-typescript) is used for the alternative implementation " +
+        "instead.",
     );
   }
 
